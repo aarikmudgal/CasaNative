@@ -1,0 +1,630 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		B00000000000000000000001 /* CasaNativeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000001 /* CasaNativeApp.swift */; };
+		B00000000000000000000002 /* CasaOSClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000002 /* CasaOSClient.swift */; };
+		B00000000000000000000003 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000003 /* RootTabView.swift */; };
+		B00000000000000000000004 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000004 /* DashboardView.swift */; };
+		B00000000000000000000006 /* AppsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000006 /* AppsView.swift */; };
+		B00000000000000000000007 /* FilesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000007 /* FilesView.swift */; };
+		B00000000000000000000008 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000008 /* SettingsView.swift */; };
+		B00000000000000000000009 /* MockCasaOSClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000009 /* MockCasaOSClientTests.swift */; };
+		B00000000000000000000010 /* HTTPCasaOSClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000012 /* HTTPCasaOSClient.swift */; };
+		B00000000000000000000011 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000013 /* AppModel.swift */; };
+		B00000000000000000000012 /* ConnectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000014 /* ConnectionView.swift */; };
+		B00000000000000000000013 /* ServerEndpoint.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000015 /* ServerEndpoint.swift */; };
+		B00000000000000000000014 /* BonjourDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000016 /* BonjourDiscovery.swift */; };
+		B00000000000000000000015 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000017 /* KeychainStore.swift */; };
+		B00000000000000000000016 /* HTTPCasaOSClientContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000018 /* HTTPCasaOSClientContractTests.swift */; };
+		B00000000000000000000017 /* ServerEndpointTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000019 /* ServerEndpointTests.swift */; };
+		B00000000000000000000018 /* InMemorySessionTokenStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000020 /* InMemorySessionTokenStoreTests.swift */; };
+		B00000000000000000000019 /* SSHCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000021 /* SSHCredentials.swift */; };
+		B00000000000000000000020 /* SSHHostKeyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000022 /* SSHHostKeyStore.swift */; };
+		B00000000000000000000021 /* SSHTerminalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000023 /* SSHTerminalView.swift */; };
+		B00000000000000000000022 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 820000000000000000000001 /* SwiftTerm */; };
+		B00000000000000000000023 /* NIOPosix in Frameworks */ = {isa = PBXBuildFile; productRef = 820000000000000000000002 /* NIOPosix */; };
+		B00000000000000000000024 /* NIOSSH in Frameworks */ = {isa = PBXBuildFile; productRef = 820000000000000000000003 /* NIOSSH */; };
+		B00000000000000000000025 /* NIOCore in Frameworks */ = {isa = PBXBuildFile; productRef = 820000000000000000000004 /* NIOCore */; };
+		B00000000000000000000026 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000024 /* Assets.xcassets */; };
+		B10000000000000000000001 /* SSHCredentialsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000001 /* SSHCredentialsTests.swift */; };
+		B10000000000000000000002 /* SSHHostKeyStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000002 /* SSHHostKeyStoreTests.swift */; };
+		B10000000000000000000003 /* SSHTerminalSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000003 /* SSHTerminalSessionTests.swift */; };
+		B20000000000000000000001 /* PWMFanControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000000000000000000001 /* PWMFanControl.swift */; };
+		B20000000000000000000002 /* FanControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000000000000000000002 /* FanControlView.swift */; };
+		B20000000000000000000003 /* PWMFanControlTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000000000000000000003 /* PWMFanControlTests.swift */; };
+		B20000000000000000000004 /* PWMFanManagedLifecycle.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000000000000000000004 /* PWMFanManagedLifecycle.swift */; };
+		B30000000000000000000001 /* FanControlScreenModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C30000000000000000000001 /* FanControlScreenModelTests.swift */; };
+		B40000000000000000000001 /* PWMFanLifecycleFailureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C40000000000000000000001 /* PWMFanLifecycleFailureTests.swift */; };
+		B50000000000000000000001 /* SMARTDriveHealth.swift in Sources */ = {isa = PBXBuildFile; fileRef = C50000000000000000000001 /* SMARTDriveHealth.swift */; };
+		B50000000000000000000002 /* SMARTDriveHealthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C50000000000000000000002 /* SMARTDriveHealthTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		D00000000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E00000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A00000000000000000000001;
+			remoteInfo = CasaNative;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		C00000000000000000000001 /* CasaNativeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CasaNativeApp.swift; sourceTree = "<group>"; };
+		C00000000000000000000002 /* CasaOSClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CasaOSClient.swift; sourceTree = "<group>"; };
+		C00000000000000000000003 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
+		C00000000000000000000004 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		C00000000000000000000006 /* AppsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppsView.swift; sourceTree = "<group>"; };
+		C00000000000000000000007 /* FilesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilesView.swift; sourceTree = "<group>"; };
+		C00000000000000000000008 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		C00000000000000000000009 /* MockCasaOSClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockCasaOSClientTests.swift; sourceTree = "<group>"; };
+		C00000000000000000000010 /* Casa Native.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Casa Native.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		C00000000000000000000011 /* CasaNativeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CasaNativeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C00000000000000000000012 /* HTTPCasaOSClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPCasaOSClient.swift; sourceTree = "<group>"; };
+		C00000000000000000000013 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		C00000000000000000000014 /* ConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionView.swift; sourceTree = "<group>"; };
+		C00000000000000000000015 /* ServerEndpoint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerEndpoint.swift; sourceTree = "<group>"; };
+		C00000000000000000000016 /* BonjourDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BonjourDiscovery.swift; sourceTree = "<group>"; };
+		C00000000000000000000017 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
+		C00000000000000000000018 /* HTTPCasaOSClientContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPCasaOSClientContractTests.swift; sourceTree = "<group>"; };
+		C00000000000000000000019 /* ServerEndpointTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerEndpointTests.swift; sourceTree = "<group>"; };
+		C00000000000000000000020 /* InMemorySessionTokenStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InMemorySessionTokenStoreTests.swift; sourceTree = "<group>"; };
+		C00000000000000000000021 /* SSHCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHCredentials.swift; sourceTree = "<group>"; };
+		C00000000000000000000022 /* SSHHostKeyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHHostKeyStore.swift; sourceTree = "<group>"; };
+		C00000000000000000000023 /* SSHTerminalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHTerminalView.swift; sourceTree = "<group>"; };
+		C00000000000000000000024 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		C10000000000000000000001 /* SSHCredentialsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHCredentialsTests.swift; sourceTree = "<group>"; };
+		C10000000000000000000002 /* SSHHostKeyStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHHostKeyStoreTests.swift; sourceTree = "<group>"; };
+		C10000000000000000000003 /* SSHTerminalSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHTerminalSessionTests.swift; sourceTree = "<group>"; };
+		C20000000000000000000001 /* PWMFanControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PWMFanControl.swift; sourceTree = "<group>"; };
+		C20000000000000000000002 /* FanControlView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FanControlView.swift; sourceTree = "<group>"; };
+		C20000000000000000000003 /* PWMFanControlTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PWMFanControlTests.swift; sourceTree = "<group>"; };
+		C20000000000000000000004 /* PWMFanManagedLifecycle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PWMFanManagedLifecycle.swift; sourceTree = "<group>"; };
+		C30000000000000000000001 /* FanControlScreenModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FanControlScreenModelTests.swift; sourceTree = "<group>"; };
+		C40000000000000000000001 /* PWMFanLifecycleFailureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PWMFanLifecycleFailureTests.swift; sourceTree = "<group>"; };
+		C50000000000000000000001 /* SMARTDriveHealth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SMARTDriveHealth.swift; sourceTree = "<group>"; };
+		C50000000000000000000002 /* SMARTDriveHealthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SMARTDriveHealthTests.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		F00000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B00000000000000000000022 /* SwiftTerm in Frameworks */,
+				B00000000000000000000023 /* NIOPosix in Frameworks */,
+				B00000000000000000000024 /* NIOSSH in Frameworks */,
+				B00000000000000000000025 /* NIOCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F00000000000000000000002 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		E00000000000000000000002 = {
+			isa = PBXGroup;
+			children = (
+				E00000000000000000000003 /* CasaNative */,
+				E00000000000000000000004 /* CasaNativeTests */,
+				E00000000000000000000005 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		E00000000000000000000003 /* CasaNative */ = {
+			isa = PBXGroup;
+			children = (
+				C00000000000000000000001 /* CasaNativeApp.swift */,
+				C00000000000000000000002 /* CasaOSClient.swift */,
+				C00000000000000000000003 /* RootTabView.swift */,
+				C00000000000000000000004 /* DashboardView.swift */,
+				C00000000000000000000006 /* AppsView.swift */,
+				C00000000000000000000007 /* FilesView.swift */,
+				C00000000000000000000008 /* SettingsView.swift */,
+				C00000000000000000000012 /* HTTPCasaOSClient.swift */,
+				C00000000000000000000013 /* AppModel.swift */,
+				C00000000000000000000014 /* ConnectionView.swift */,
+				C00000000000000000000015 /* ServerEndpoint.swift */,
+				C00000000000000000000016 /* BonjourDiscovery.swift */,
+				C00000000000000000000017 /* KeychainStore.swift */,
+				C00000000000000000000021 /* SSHCredentials.swift */,
+				C00000000000000000000022 /* SSHHostKeyStore.swift */,
+				C00000000000000000000023 /* SSHTerminalView.swift */,
+				C20000000000000000000001 /* PWMFanControl.swift */,
+				C20000000000000000000004 /* PWMFanManagedLifecycle.swift */,
+				C50000000000000000000001 /* SMARTDriveHealth.swift */,
+				C20000000000000000000002 /* FanControlView.swift */,
+				C00000000000000000000024 /* Assets.xcassets */,
+			);
+			path = CasaNative;
+			sourceTree = "<group>";
+		};
+		E00000000000000000000004 /* CasaNativeTests */ = {
+			isa = PBXGroup;
+			children = (
+				C00000000000000000000009 /* MockCasaOSClientTests.swift */,
+				C00000000000000000000018 /* HTTPCasaOSClientContractTests.swift */,
+				C00000000000000000000019 /* ServerEndpointTests.swift */,
+				C00000000000000000000020 /* InMemorySessionTokenStoreTests.swift */,
+				C10000000000000000000001 /* SSHCredentialsTests.swift */,
+				C10000000000000000000002 /* SSHHostKeyStoreTests.swift */,
+				C10000000000000000000003 /* SSHTerminalSessionTests.swift */,
+				C20000000000000000000003 /* PWMFanControlTests.swift */,
+				C30000000000000000000001 /* FanControlScreenModelTests.swift */,
+				C40000000000000000000001 /* PWMFanLifecycleFailureTests.swift */,
+				C50000000000000000000002 /* SMARTDriveHealthTests.swift */,
+			);
+			path = CasaNativeTests;
+			sourceTree = "<group>";
+		};
+		E00000000000000000000005 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				C00000000000000000000010 /* Casa Native.app */,
+				C00000000000000000000011 /* CasaNativeTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A00000000000000000000001 /* CasaNative */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 100000000000000000000001 /* Build configuration list for PBXNativeTarget "CasaNative" */;
+			buildPhases = (
+				200000000000000000000001 /* Sources */,
+				F00000000000000000000001 /* Frameworks */,
+				300000000000000000000001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = CasaNative;
+			packageProductDependencies = (
+				820000000000000000000001 /* SwiftTerm */,
+				820000000000000000000002 /* NIOPosix */,
+				820000000000000000000003 /* NIOSSH */,
+				820000000000000000000004 /* NIOCore */,
+			);
+			productName = CasaNative;
+			productReference = C00000000000000000000010 /* Casa Native.app */;
+			productType = "com.apple.product-type.application";
+		};
+		A00000000000000000000002 /* CasaNativeTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 100000000000000000000002 /* Build configuration list for PBXNativeTarget "CasaNativeTests" */;
+			buildPhases = (
+				200000000000000000000002 /* Sources */,
+				F00000000000000000000002 /* Frameworks */,
+				300000000000000000000002 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				400000000000000000000001 /* PBXTargetDependency */,
+			);
+			name = CasaNativeTests;
+			productName = CasaNativeTests;
+			productReference = C00000000000000000000011 /* CasaNativeTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		E00000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2660;
+				LastUpgradeCheck = 2660;
+				TargetAttributes = {
+					A00000000000000000000001 = {
+						CreatedOnToolsVersion = 26.6;
+					};
+					A00000000000000000000002 = {
+						CreatedOnToolsVersion = 26.6;
+						TestTargetID = A00000000000000000000001;
+					};
+				};
+			};
+			buildConfigurationList = 100000000000000000000003 /* Build configuration list for PBXProject "CasaNative" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = E00000000000000000000002;
+			packageReferences = (
+				810000000000000000000001 /* XCRemoteSwiftPackageReference "SwiftTerm" */,
+				810000000000000000000002 /* XCRemoteSwiftPackageReference "swift-crypto" */,
+				810000000000000000000003 /* XCRemoteSwiftPackageReference "swift-nio-ssh" */,
+				810000000000000000000004 /* XCRemoteSwiftPackageReference "swift-nio" */,
+			);
+			productRefGroup = E00000000000000000000005 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A00000000000000000000001 /* CasaNative */,
+				A00000000000000000000002 /* CasaNativeTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		300000000000000000000001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B00000000000000000000026 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		300000000000000000000002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		200000000000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B00000000000000000000001 /* CasaNativeApp.swift in Sources */,
+				B00000000000000000000002 /* CasaOSClient.swift in Sources */,
+				B00000000000000000000003 /* RootTabView.swift in Sources */,
+				B00000000000000000000004 /* DashboardView.swift in Sources */,
+				B00000000000000000000006 /* AppsView.swift in Sources */,
+				B00000000000000000000007 /* FilesView.swift in Sources */,
+				B00000000000000000000008 /* SettingsView.swift in Sources */,
+				B00000000000000000000010 /* HTTPCasaOSClient.swift in Sources */,
+				B00000000000000000000011 /* AppModel.swift in Sources */,
+				B00000000000000000000012 /* ConnectionView.swift in Sources */,
+				B00000000000000000000013 /* ServerEndpoint.swift in Sources */,
+				B00000000000000000000014 /* BonjourDiscovery.swift in Sources */,
+				B00000000000000000000015 /* KeychainStore.swift in Sources */,
+				B00000000000000000000019 /* SSHCredentials.swift in Sources */,
+				B00000000000000000000020 /* SSHHostKeyStore.swift in Sources */,
+				B00000000000000000000021 /* SSHTerminalView.swift in Sources */,
+				B20000000000000000000001 /* PWMFanControl.swift in Sources */,
+				B20000000000000000000004 /* PWMFanManagedLifecycle.swift in Sources */,
+				B50000000000000000000001 /* SMARTDriveHealth.swift in Sources */,
+				B20000000000000000000002 /* FanControlView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		200000000000000000000002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B00000000000000000000009 /* MockCasaOSClientTests.swift in Sources */,
+				B00000000000000000000016 /* HTTPCasaOSClientContractTests.swift in Sources */,
+				B00000000000000000000017 /* ServerEndpointTests.swift in Sources */,
+				B00000000000000000000018 /* InMemorySessionTokenStoreTests.swift in Sources */,
+				B10000000000000000000001 /* SSHCredentialsTests.swift in Sources */,
+				B10000000000000000000002 /* SSHHostKeyStoreTests.swift in Sources */,
+				B10000000000000000000003 /* SSHTerminalSessionTests.swift in Sources */,
+				B20000000000000000000003 /* PWMFanControlTests.swift in Sources */,
+				B30000000000000000000001 /* FanControlScreenModelTests.swift in Sources */,
+				B40000000000000000000001 /* PWMFanLifecycleFailureTests.swift in Sources */,
+				B50000000000000000000002 /* SMARTDriveHealthTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		400000000000000000000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A00000000000000000000001 /* CasaNative */;
+			targetProxy = D00000000000000000000001 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		500000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		500000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		500000000000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = X592A9T674;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = CasaNative/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aarikmudgal.CasaNative;
+				PRODUCT_MODULE_NAME = CasaNative;
+				PRODUCT_NAME = "Casa Native";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		500000000000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = X592A9T674;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = CasaNative/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aarikmudgal.CasaNative;
+				PRODUCT_MODULE_NAME = CasaNative;
+				PRODUCT_NAME = "Casa Native";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		500000000000000000000005 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = X592A9T674;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aarikmudgal.CasaNativeTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Casa Native.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Casa Native";
+			};
+			name = Debug;
+		};
+		500000000000000000000006 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = X592A9T674;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aarikmudgal.CasaNativeTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Casa Native.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Casa Native";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		100000000000000000000001 /* Build configuration list for PBXNativeTarget "CasaNative" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				500000000000000000000003 /* Debug */,
+				500000000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		100000000000000000000002 /* Build configuration list for PBXNativeTarget "CasaNativeTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				500000000000000000000005 /* Debug */,
+				500000000000000000000006 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		100000000000000000000003 /* Build configuration list for PBXProject "CasaNative" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				500000000000000000000001 /* Debug */,
+				500000000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		810000000000000000000001 /* XCRemoteSwiftPackageReference "SwiftTerm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/migueldeicaza/SwiftTerm.git";
+			requirement = {
+				kind = exactVersion;
+				version = 1.18.0;
+			};
+		};
+		810000000000000000000002 /* XCRemoteSwiftPackageReference "swift-crypto" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-crypto.git";
+			requirement = {
+				kind = exactVersion;
+				version = 4.5.1;
+			};
+		};
+		810000000000000000000003 /* XCRemoteSwiftPackageReference "swift-nio-ssh" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-nio-ssh.git";
+			requirement = {
+				kind = exactVersion;
+				version = 0.15.0;
+			};
+		};
+		810000000000000000000004 /* XCRemoteSwiftPackageReference "swift-nio" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-nio.git";
+			requirement = {
+				kind = exactVersion;
+				version = 2.101.3;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		820000000000000000000001 /* SwiftTerm */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 810000000000000000000001 /* XCRemoteSwiftPackageReference "SwiftTerm" */;
+			productName = SwiftTerm;
+		};
+		820000000000000000000002 /* NIOPosix */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 810000000000000000000004 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIOPosix;
+		};
+		820000000000000000000003 /* NIOSSH */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 810000000000000000000003 /* XCRemoteSwiftPackageReference "swift-nio-ssh" */;
+			productName = NIOSSH;
+		};
+		820000000000000000000004 /* NIOCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 810000000000000000000004 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIOCore;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = E00000000000000000000001 /* Project object */;
+}

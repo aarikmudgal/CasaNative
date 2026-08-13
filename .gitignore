@@ -1,0 +1,52 @@
+# macOS
+.DS_Store
+
+# Xcode user state and build products
+xcuserdata/
+*.xcuserstate
+*.xccheckout
+*.xcscmblueprint
+*.moved-aside
+.xcode.env.local
+build/
+DerivedData/
+*.xcresult
+*.xcarchive
+*.app
+*.dSYM
+*.dSYM.zip
+*.ipa
+
+# Local build and test caches
+.swiftpm/
+.build*/
+.testbuild*/
+.finalbuild/
+.finaltest/
+.iphone17promax-*/
+.iphoneos-release-final/
+.files-review-derived/
+.fan-*-build/
+.fan-static/
+.swift-test-build/
+.mactest/
+.ci-derived/
+.release-derived/
+TestResults/
+
+# Local release output
+dist/
+
+# Local editor state
+.idea/
+.vscode/
+*.swp
+
+# Local credentials and signing material
+.env
+.env.*
+!.env.example
+*.mobileprovision
+*.provisionprofile
+*.p12
+*.p8

@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: iPhone 17 Pro Max / iOS 26.5
+    runs-on: macos-26
+    timeout-minutes: 45
+    env:
+      PROJECT: CasaNative.xcodeproj
+      SCHEME: CasaNative
+      DESTINATION: "platform=iOS Simulator,name=iPhone 17 Pro Max,OS=26.5"
+      DERIVED_DATA_PATH: .ci-derived
+      RESULT_BUNDLE_PATH: TestResults/CasaNative.xcresult
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Select Xcode 26.6
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.6.app/Contents/Developer
+          xcodebuild -version
+          xcrun simctl list runtimes | grep -F "iOS 26.5"
+          xcrun simctl list devices available | grep -F "iPhone 17 Pro Max"
+
+      - name: Verify shared build inputs
+        run: |
+          test -f CasaNative.xcodeproj/xcshareddata/xcschemes/CasaNative.xcscheme
+          test -f CasaNative.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+
+      - name: Resolve locked packages
+        run: |
+          xcodebuild \
+            -resolvePackageDependencies \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -derivedDataPath "$DERIVED_DATA_PATH" \
+            -onlyUsePackageVersionsFromResolvedFile
+          git diff --exit-code -- \
+            CasaNative.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+
+      - name: Run unsigned simulator tests
+        run: |
+          mkdir -p TestResults
+          xcodebuild \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Debug \
+            -destination "$DESTINATION" \
+            -derivedDataPath "$DERIVED_DATA_PATH" \
+            -resultBundlePath "$RESULT_BUNDLE_PATH" \
+            -onlyUsePackageVersionsFromResolvedFile \
+            -disableAutomaticPackageResolution \
+            -parallel-testing-enabled NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            test
+
+      - name: Upload failed test result
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: "CasaNative-xcresult-${{ github.run_id }}"
+          path: TestResults/CasaNative.xcresult
+          if-no-files-found: ignore
+          retention-days: 7
+          compression-level: 0
+          include-hidden-files: true

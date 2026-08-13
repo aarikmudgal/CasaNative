@@ -1,0 +1,136 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test release candidate
+    uses: ./.github/workflows/ci.yml
+
+  build-and-release:
+    name: Build unsigned IPA and publish release
+    needs: test
+    runs-on: macos-26
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    env:
+      PROJECT: CasaNative.xcodeproj
+      SCHEME: CasaNative
+      DERIVED_DATA_PATH: .release-derived
+      OUTPUT_DIR: dist
+
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Select Xcode 26.6
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.6.app/Contents/Developer
+          xcodebuild -version
+
+      - name: Verify shared build inputs
+        run: |
+          test -f CasaNative.xcodeproj/xcshareddata/xcschemes/CasaNative.xcscheme
+          test -f CasaNative.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+          test -f LICENSE
+          test -f THIRD_PARTY_NOTICES.md
+
+      - name: Resolve locked packages
+        run: |
+          xcodebuild \
+            -resolvePackageDependencies \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -derivedDataPath "$DERIVED_DATA_PATH" \
+            -onlyUsePackageVersionsFromResolvedFile
+          git diff --exit-code -- \
+            CasaNative.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+
+      - name: Build unsigned iPhoneOS Release app
+        run: |
+          xcodebuild \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$DERIVED_DATA_PATH" \
+            -onlyUsePackageVersionsFromResolvedFile \
+            -disableAutomaticPackageResolution \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY= \
+            build
+
+      - name: Package unsigned IPA and checksum
+        run: |
+          APP_PATH="$DERIVED_DATA_PATH/Build/Products/Release-iphoneos/Casa Native.app"
+          PACKAGE_ROOT="$RUNNER_TEMP/CasaNative-package"
+          PACKAGE_APP="$PACKAGE_ROOT/Payload/Casa Native.app"
+          test -d "$APP_PATH"
+          test ! -e "$APP_PATH/embedded.mobileprovision"
+          test ! -e "$APP_PATH/_CodeSignature"
+          if /usr/bin/codesign --verify "$APP_PATH" >/dev/null 2>&1; then
+            echo "Expected an unsigned app, but code-signature verification succeeded." >&2
+            exit 1
+          fi
+          mkdir -p "$PACKAGE_ROOT/Payload" "$OUTPUT_DIR"
+          /usr/bin/ditto "$APP_PATH" "$PACKAGE_APP"
+          /usr/bin/ditto LICENSE "$PACKAGE_APP/LICENSE"
+          /usr/bin/ditto THIRD_PARTY_NOTICES.md \
+            "$PACKAGE_APP/THIRD_PARTY_NOTICES.md"
+          /usr/bin/ditto -c -k --sequesterRsrc --keepParent \
+            "$PACKAGE_ROOT/Payload" \
+            "$OUTPUT_DIR/CasaNative-unsigned.ipa"
+          /usr/bin/ditto LICENSE "$OUTPUT_DIR/LICENSE"
+          /usr/bin/ditto THIRD_PARTY_NOTICES.md \
+            "$OUTPUT_DIR/THIRD_PARTY_NOTICES.md"
+          cd "$OUTPUT_DIR"
+          /usr/bin/shasum -a 256 CasaNative-unsigned.ipa \
+            > CasaNative-unsigned.ipa.sha256
+
+      - name: Write release warning
+        run: |
+          /usr/bin/printf '%s\n' \
+            'This release contains an unsigned iPhoneOS build.' \
+            '' \
+            '**CasaNative-unsigned.ipa is not directly installable.** It has no Apple signing identity or provisioning profile. Re-sign it for your own device with Xcode-compatible signing tools or a trusted sideloading tool before installation.' \
+            '' \
+            'Verify the IPA with `shasum -a 256 -c CasaNative-unsigned.ipa.sha256` before re-signing. See README.md for Xcode and Sideloadly instructions. Use only your own Apple account and obtain Sideloadly only from https://sideloadly.io/.' \
+            '' \
+            'No Apple certificate, provisioning profile, Apple ID, or Apple signing secret was used to create these assets.' \
+            > "$RUNNER_TEMP/release-notes.md"
+
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" \
+              "$OUTPUT_DIR/CasaNative-unsigned.ipa" \
+              "$OUTPUT_DIR/CasaNative-unsigned.ipa.sha256" \
+              "$OUTPUT_DIR/LICENSE" \
+              "$OUTPUT_DIR/THIRD_PARTY_NOTICES.md" \
+              --clobber
+            gh release edit "$GITHUB_REF_NAME" \
+              --title "Casa Native $GITHUB_REF_NAME" \
+              --notes-file "$RUNNER_TEMP/release-notes.md"
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              "$OUTPUT_DIR/CasaNative-unsigned.ipa" \
+              "$OUTPUT_DIR/CasaNative-unsigned.ipa.sha256" \
+              "$OUTPUT_DIR/LICENSE" \
+              "$OUTPUT_DIR/THIRD_PARTY_NOTICES.md" \
+              --verify-tag \
+              --title "Casa Native $GITHUB_REF_NAME" \
+              --notes-file "$RUNNER_TEMP/release-notes.md"
+          fi
