@@ -17,7 +17,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Security
 
-- Release publication now fails closed unless `RELEASE_TOKEN` authenticates as `aarikmudgal`, and CODEOWNERS assigns every repository path to `@aarikmudgal`.
+- Release publication now fails closed unless `RELEASE_TOKEN` authenticates as `aarikmudgal` and has repository push permission, while CODEOWNERS assigns every repository path to `@aarikmudgal`.
 
 ## [0.1.0] - 2026-08-13
 
