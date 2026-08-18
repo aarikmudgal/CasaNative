@@ -1255,6 +1255,8 @@ private final class CasaFileThumbnailStore: ObservableObject {
 }
 
 private struct FileGridTile: View {
+    private static let thumbnailRequestSize = CGSize(width: 190, height: 190)
+
     let file: CasaFile
     let client: any CasaOSClient
     @ObservedObject var thumbnailStore: CasaFileThumbnailStore
@@ -1268,11 +1270,11 @@ private struct FileGridTile: View {
         VStack(spacing: 8) {
             ZStack {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color.secondary.opacity(0.09))
+                    .fill(Color(uiColor: .secondarySystemBackground))
                 if let thumbnail {
                     Image(uiImage: thumbnail)
                         .resizable()
-                        .scaledToFill()
+                        .scaledToFit()
                         .accessibilityHidden(true)
                 } else {
                     Image(systemName: file.isDirectory ? "folder.fill" : iconName)
@@ -1287,7 +1289,8 @@ private struct FileGridTile: View {
                         .accessibilityHidden(true)
                 }
             }
-            .frame(height: 88)
+            .frame(maxWidth: .infinity)
+            .aspectRatio(1, contentMode: .fit)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
             Text(file.name)
@@ -1316,7 +1319,7 @@ private struct FileGridTile: View {
             let image = await thumbnailStore.thumbnail(
                 for: file,
                 client: client,
-                size: CGSize(width: 190, height: 88),
+                size: Self.thumbnailRequestSize,
                 scale: displayScale
             )
             guard !Task.isCancelled else { return }

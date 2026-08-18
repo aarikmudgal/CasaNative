@@ -56,7 +56,7 @@ Stock CasaOS does not advertise `_casaos._tcp` through Bonjour. Exact automatic 
 - Starts Files at `/DATA`, supports navigation across the server filesystem, and opens authenticated downloads in native Quick Look.
 - Allows folder creation, upload, rename, copy, move, and guarded deletion at any safe absolute server path permitted by the CasaOS service and host; explicit downloads do not modify the server.
 - Supports multi-file selection for uploads, shows per-file progress and a completion summary, and continues past individual file failures.
-- Offers List and Grid layouts and remembers the selected layout on the iPhone. Grid lazily renders native thumbnails for supported files up to 16 MiB; larger, unknown, or unsupported files retain their type icon and remain available through explicit Quick Look preview.
+- Offers List and Grid layouts and remembers the selected layout on the iPhone. Grid lazily renders aspect-preserving native thumbnails in square preview wells for supported files up to 16 MiB, letterboxing when needed instead of cropping; larger, unknown, or unsupported files retain their type icon and remain available through explicit Quick Look preview.
 - Uses CasaOS's non-overwriting copy/move mode by default. Accepted transfers are shown as queued because CasaOS performs them asynchronously.
 - **Filesystem warning:** Casa Native is not a filesystem sandbox and adds no `/DATA` mutation boundary. Requests use the signed-in CasaOS session, but stock file handlers run with CasaOS daemon privileges rather than a documented per-account filesystem ACL. A privileged backend may alter or permanently delete operating-system and application files. Review every path and destructive confirmation carefully.
 - Confirms CasaOS restart and shutdown operations before sending them.
@@ -249,16 +249,32 @@ Free Apple development profiles normally expire after seven days, so the app mus
 
 ## Releases and CI
 
-Every branch push and pull request runs unsigned simulator tests on GitHub's `macos-26` runner with Xcode 26.6 and an iPhone 17 Pro Max simulator running iOS 26.5. The workflow resolves only versions in the committed `Package.resolved` and uploads the `.xcresult` bundle only when the test job fails.
+Every branch push and pull request runs three independent CI gates:
 
-A pushed tag matching `v*` runs the same test gate, then builds an unsigned generic `iphoneos` Release app with code signing disabled. The release workflow packages:
+- Repository and release-metadata validation, including the release tool's unit tests.
+- Unsigned tests on GitHub's `macos-26` runner with Xcode 26.6 and an iPhone 17 Pro Max simulator running iOS 26.5.
+- Xcode static analysis against that same locked project and simulator configuration.
+
+The Xcode jobs resolve only versions in the committed `Package.resolved`. A warning emitted from Casa Native or Casa Native test source is treated as a failure; warnings internal to a locked third-party package remain that package's responsibility. Failed Xcode jobs retain their `.xcresult` bundle for seven days. GitHub CodeQL remains a separate required release check.
+
+After CI completes successfully for an in-repository push to `main`, the release workflow verifies that exact commit is still `origin/main`. It waits for every check run attached to that commit, requires the repository, simulator, static-analysis, and CodeQL checks, and refuses to release if any observed check is incomplete or has a failing terminal conclusion. GitHub's non-failing `success`, `neutral`, and `skipped` conclusions are accepted. If `main` advances during validation, the stale run stops and the newer CI run handles the combined changes.
+
+Versioning follows Semantic Versioning across commits since the latest `vX.Y.Z` tag. A Conventional Commit with `!` or a `BREAKING CHANGE:` footer selects a major release, `feat:` selects a minor release, and other non-release commits select a patch release. The highest applicable bump wins. User-visible pull requests should add useful nuance under `[Unreleased]`. If that section is empty, the release tool keeps automation recoverable by generating a `Changed` list from sanitized non-release commit subjects. The workflow increments the positive build number independently.
+
+For a planned release, the workflow promotes `[Unreleased]`, updates both Xcode version configurations, and then repeats repository validation, exact simulator tests, Xcode static analysis, and the unsigned device build. Only after all of those gates pass does it create a `chore(release): vX.Y.Z` commit authored and committed as `Aarik Mudgal <aarikmudgal@gmail.com>`, create an annotated tag, and atomically push `main` and the tag. It creates a draft GitHub release, uploads and verifies every asset, and publishes the release only after the draft is complete. The workflow packages:
 
 - `CasaNative-unsigned.ipa`
 - `CasaNative-unsigned.ipa.sha256`
 - `LICENSE`
 - `THIRD_PARTY_NOTICES.md`
 
-The IPA also contains the project license and third-party notices. The workflow uses only GitHub's repository token to create the GitHub release. It contains no Apple certificate, provisioning profile, Apple ID, or signing secret. Release IPAs must be re-signed as described above.
+The IPA also contains the project license and third-party notices. It contains no Apple certificate, provisioning profile, Apple ID, or Apple signing secret. Release IPAs must be re-signed as described above.
+
+The workflow works with its scoped `github.token`. In that default mode, Git records Aarik's configured author and committer metadata, while GitHub's audit trail correctly identifies the authenticated actor as GitHub Actions. Maintainers who require pushes and releases to be authenticated by Aarik's GitHub account can add an expiring fine-grained personal access token as the `RELEASE_TOKEN` Actions secret. Limit it to this repository with read/write **Contents** access; the workflow falls back to `github.token` when the secret is absent. A token-authenticated release still uses the fixed Git identity above. Rotate or remove the token when it is no longer needed, and never place it in source, logs, pull requests, or artifacts.
+
+The repository must allow the selected token actor to push the generated release commit and annotated tag. A branch or tag rule that blocks that actor will safely stop the atomic push and no release will be published.
+
+The Release workflow also has a manual recovery entry point. A blank recovery tag retries normal release planning for the checked current `main`. Supplying an existing canonical tag such as `v0.2.0` is only for an interrupted draft: the workflow requires the latest annotated release tag contained in `main`, refuses to alter an already-published release, and reruns metadata checks, simulator tests, static analysis, and the device build before replacing draft assets and publishing. Enable GitHub's immutable releases after confirming the workflow; its draft-first publication order is compatible with immutable assets and tags.
 
 ## Live-server validation policy
 

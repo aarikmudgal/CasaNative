@@ -1,43 +1,406 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      recovery_tag:
+        description: "Optional existing draft-release tag to rebuild and publish"
+        required: false
+        type: string
 
 permissions:
+  actions: read
+  checks: read
   contents: read
 
-jobs:
-  test:
-    name: Test release candidate
-    uses: ./.github/workflows/ci.yml
+concurrency:
+  group: release-main
+  cancel-in-progress: false
 
-  build-and-release:
-    name: Build unsigned IPA and publish release
-    needs: test
-    runs-on: macos-26
-    timeout-minutes: 45
-    permissions:
-      contents: write
-    env:
-      PROJECT: CasaNative.xcodeproj
-      SCHEME: CasaNative
-      DERIVED_DATA_PATH: .release-derived
-      OUTPUT_DIR: dist
+jobs:
+  gate:
+    name: Verify completed main checks
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.event == 'push' &&
+          github.event.workflow_run.head_branch == 'main' &&
+          github.event.workflow_run.head_repository.full_name == github.repository
+        )
+      }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    outputs:
+      recovery_tag: ${{ steps.resolve.outputs.recovery_tag }}
+      target_sha: ${{ steps.resolve.outputs.target_sha }}
+      verify_checks: ${{ steps.resolve.outputs.verify_checks }}
 
     steps:
-      - name: Check out tagged source
+      - name: Resolve trusted release target
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RECOVERY_TAG: ${{ inputs.recovery_tag }}
+          TRIGGER_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          main_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+
+          if [[ -n "$RECOVERY_TAG" ]]; then
+            if [[ ! "$RECOVERY_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+              echo "Recovery tag must be a canonical vMAJOR.MINOR.PATCH tag." >&2
+              exit 1
+            fi
+
+            ref_json="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RECOVERY_TAG")"
+            object_type="$(jq -r '.object.type' <<<"$ref_json")"
+            object_sha="$(jq -r '.object.sha' <<<"$ref_json")"
+            if [[ "$object_type" != "tag" ]]; then
+              echo "Recovery requires an annotated release tag." >&2
+              exit 1
+            fi
+
+            tag_json="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$object_sha")"
+            target_type="$(jq -r '.object.type' <<<"$tag_json")"
+            target_sha="$(jq -r '.object.sha' <<<"$tag_json")"
+            if [[ "$target_type" != "commit" ]]; then
+              echo "Recovery tag does not resolve directly to a commit." >&2
+              exit 1
+            fi
+
+            compare_status="$(
+              gh api "repos/$GITHUB_REPOSITORY/compare/$target_sha...$main_sha" \
+                --jq '.status'
+            )"
+            if [[ "$compare_status" != "ahead" && "$compare_status" != "identical" ]]; then
+              echo "Recovery tag is not contained in origin/main." >&2
+              exit 1
+            fi
+
+            echo "recovery_tag=$RECOVERY_TAG" >> "$GITHUB_OUTPUT"
+            echo "target_sha=$target_sha" >> "$GITHUB_OUTPUT"
+            echo "verify_checks=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_run" ]]; then
+            target_sha="$TRIGGER_SHA"
+          else
+            target_sha="$main_sha"
+          fi
+
+          if [[ -z "$target_sha" || "$target_sha" != "$main_sha" ]]; then
+            echo "The completed CI commit is no longer origin/main; a newer CI run will handle it." >&2
+            exit 1
+          fi
+
+          echo "recovery_tag=" >> "$GITHUB_OUTPUT"
+          echo "target_sha=$target_sha" >> "$GITHUB_OUTPUT"
+          echo "verify_checks=true" >> "$GITHUB_OUTPUT"
+
+      - name: Require every check for the exact commit
+        if: ${{ steps.resolve.outputs.verify_checks == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ steps.resolve.outputs.target_sha }}
+        run: |
+          set -euo pipefail
+          deadline=$((SECONDS + 1800))
+
+          while (( SECONDS < deadline )); do
+            gh api \
+              -H "Accept: application/vnd.github+json" \
+              --paginate \
+              --slurp \
+              "repos/$GITHUB_REPOSITORY/commits/$TARGET_SHA/check-runs?filter=latest&per_page=100" \
+              > "$RUNNER_TEMP/check-pages.json"
+
+            gh api \
+              -H "Accept: application/vnd.github+json" \
+              --paginate \
+              --slurp \
+              "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$TARGET_SHA&per_page=100" \
+              > "$RUNNER_TEMP/action-run-pages.json"
+
+            jq --arg run_id "$GITHUB_RUN_ID" '
+              [
+                .[].check_runs[]
+                | select(
+                    ((.details_url // "")
+                      | contains("/actions/runs/" + $run_id + "/")) == false
+                  )
+                | select(.name != "Verify completed main checks")
+                | select(.name != "Prepare, validate, build, and publish")
+              ]
+              | unique_by(.id)
+            ' "$RUNNER_TEMP/check-pages.json" > "$RUNNER_TEMP/checks.json"
+
+            jq --arg target_sha "$TARGET_SHA" '
+              [
+                .[].workflow_runs[]
+                | select(.head_sha == $target_sha)
+              ]
+              | unique_by(.id)
+            ' "$RUNNER_TEMP/action-run-pages.json" > "$RUNNER_TEMP/action-runs.json"
+
+            echo "Checks observed for $TARGET_SHA:"
+            jq -r '.[] | [.name, .status, (.conclusion // "-")] | @tsv' \
+              "$RUNNER_TEMP/checks.json"
+
+            echo "CodeQL workflow runs observed for $TARGET_SHA:"
+            jq -r '
+              .[]
+              | select(.path == "dynamic/github-code-scanning/codeql")
+              | [.name, .path, .status, (.conclusion // "-")] | @tsv
+            ' "$RUNNER_TEMP/action-runs.json"
+
+            failures="$(
+              jq -r '
+                .[]
+                | select(
+                    .status == "completed" and
+                    (
+                      .conclusion as $conclusion
+                      | ["success", "neutral", "skipped"]
+                      | index($conclusion)
+                    ) == null
+                  )
+                | .name + ": " + (.conclusion // "missing conclusion")
+              ' "$RUNNER_TEMP/checks.json"
+            )"
+            if [[ -n "$failures" ]]; then
+              echo "A required commit check did not succeed:" >&2
+              echo "$failures" >&2
+              exit 1
+            fi
+
+            pending="$(jq '[.[] | select(.status != "completed")] | length' "$RUNNER_TEMP/checks.json")"
+            has_repository_quality="$(
+              jq 'any(.[];
+                .name == "Repository quality" and
+                .app.slug == "github-actions" and
+                .status == "completed" and
+                .conclusion == "success"
+              )' \
+                "$RUNNER_TEMP/checks.json"
+            )"
+            has_simulator_tests="$(
+              jq 'any(.[];
+                .name == "iPhone 17 Pro Max / iOS 26.5" and
+                .app.slug == "github-actions" and
+                .status == "completed" and
+                .conclusion == "success"
+              )' \
+                "$RUNNER_TEMP/checks.json"
+            )"
+            has_static_analysis="$(
+              jq 'any(.[];
+                .name == "Xcode static analysis" and
+                .app.slug == "github-actions" and
+                .status == "completed" and
+                .conclusion == "success"
+              )' \
+                "$RUNNER_TEMP/checks.json"
+            )"
+            has_codeql_check="$(
+              jq 'any(.[];
+                .name == "Analyze (actions)" and
+                .app.slug == "github-actions" and
+                .status == "completed" and
+                .conclusion == "success"
+              )' \
+                "$RUNNER_TEMP/checks.json"
+            )"
+            has_codeql_workflow="$(
+              jq --arg target_sha "$TARGET_SHA" 'any(.[];
+                .head_sha == $target_sha and
+                .path == "dynamic/github-code-scanning/codeql" and
+                .status == "completed" and
+                .conclusion == "success"
+              )' "$RUNNER_TEMP/action-runs.json"
+            )"
+
+            if [[ "$pending" == "0" &&
+                  "$has_repository_quality" == "true" &&
+                  "$has_simulator_tests" == "true" &&
+                  "$has_static_analysis" == "true" &&
+                  "$has_codeql_check" == "true" &&
+                  "$has_codeql_workflow" == "true" ]]; then
+              exit 0
+            fi
+
+            sleep 15
+          done
+
+          echo "Timed out waiting for CI and CodeQL checks on $TARGET_SHA." >&2
+          exit 1
+
+  release:
+    name: Prepare, validate, build, and publish
+    needs: gate
+    runs-on: macos-26
+    timeout-minutes: 90
+    permissions:
+      actions: read
+      contents: write
+    env:
+      BASE_SHA: ${{ needs.gate.outputs.target_sha }}
+      DERIVED_DATA_PATH: .release-derived
+      DESTINATION: "platform=iOS Simulator,name=iPhone 17 Pro Max,OS=26.5"
+      OUTPUT_DIR: dist
+      PROJECT: CasaNative.xcodeproj
+      PYTHONPYCACHEPREFIX: ${{ runner.temp }}/python-cache
+      RECOVERY_TAG: ${{ needs.gate.outputs.recovery_tag }}
+      SCHEME: CasaNative
+
+    steps:
+      - name: Check out exact release source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
+          ref: ${{ needs.gate.outputs.target_sha }}
+
+      - name: Verify clean exact checkout
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$BASE_SHA"
+          test -z "$(git status --porcelain)"
+          git diff --check
+
+      - name: Plan release or recovery
+        id: release-metadata
+        run: |
+          set -euo pipefail
+          if [[ -n "$RECOVERY_TAG" ]]; then
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+            echo "version=${RECOVERY_TAG#v}" >> "$GITHUB_OUTPUT"
+            echo "tag=$RECOVERY_TAG" >> "$GITHUB_OUTPUT"
+            echo "previous_tag=" >> "$GITHUB_OUTPUT"
+            echo "build=" >> "$GITHUB_OUTPUT"
+          else
+            python3 scripts/release_tool.py plan --github-output "$GITHUB_OUTPUT"
+          fi
+
+      - name: Reject an existing automatic release target
+        if: >-
+          ${{
+            steps.release-metadata.outputs.needed == 'true' &&
+            needs.gate.outputs.recovery_tag == ''
+          }}
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+          TAG: ${{ steps.release-metadata.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if git show-ref --verify --quiet "refs/tags/$TAG"; then
+            echo "Tag $TAG already exists." >&2
+            exit 1
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists." >&2
+            exit 1
+          fi
+
+      - name: Prepare version and changelog
+        if: >-
+          ${{
+            steps.release-metadata.outputs.needed == 'true' &&
+            needs.gate.outputs.recovery_tag == ''
+          }}
+        env:
+          BUILD: ${{ steps.release-metadata.outputs.build }}
+          VERSION: ${{ steps.release-metadata.outputs.version }}
+        run: |
+          set -euo pipefail
+          python3 scripts/release_tool.py prepare \
+            --version "$VERSION" \
+            --build "$BUILD" \
+            --date "$(date -u +%F)"
+
+      - name: Validate prepared repository
+        if: ${{ steps.release-metadata.outputs.needed == 'true' }}
+        env:
+          TAG: ${{ steps.release-metadata.outputs.tag }}
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/release_tool.py
+          python3 -m unittest discover -s scripts/tests -p 'test_*.py'
+          if [[ -n "$RECOVERY_TAG" ]]; then
+            python3 scripts/release_tool.py check
+          else
+            python3 scripts/release_tool.py check --expected-tag "$TAG"
+          fi
+          git diff --check
+
+          if [[ -n "$RECOVERY_TAG" ]]; then
+            test -z "$(git status --porcelain)"
+          else
+            while IFS= read -r path; do
+              case "$path" in
+                CHANGELOG.md|CasaNative.xcodeproj/project.pbxproj)
+                  ;;
+                *)
+                  echo "Release preparation changed unexpected path: $path" >&2
+                  exit 1
+                  ;;
+              esac
+            done < <(git diff --name-only)
+            test -n "$(git diff --name-only)"
+          fi
+
+      - name: Verify recovery tag
+        if: >-
+          ${{
+            steps.release-metadata.outputs.needed == 'true' &&
+            needs.gate.outputs.recovery_tag != ''
+          }}
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+          TAG: ${{ steps.release-metadata.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"
+          test "$(git cat-file -t "$TAG")" = "tag"
+          test "$(git rev-parse "$TAG^{commit}")" = "$(git rev-parse HEAD)"
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$TAG^{commit}" FETCH_HEAD
+          latest_tag=""
+          while IFS= read -r candidate; do
+            if [[ "$candidate" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+              latest_tag="$candidate"
+              break
+            fi
+          done < <(git tag --merged FETCH_HEAD --list 'v*' --sort=-version:refname)
+          if [[ "$latest_tag" != "$TAG" ]]; then
+            echo "Recovery is limited to the latest canonical tag on main." >&2
+            exit 1
+          fi
+          if gh release view "$TAG" --json isDraft --jq '.isDraft' 2>/dev/null \
+            | grep -Fxq false; then
+            echo "Release $TAG is already published and will not be modified." >&2
+            exit 1
+          fi
 
       - name: Select Xcode 26.6
+        if: ${{ steps.release-metadata.outputs.needed == 'true' }}
         run: |
           sudo xcode-select -s /Applications/Xcode_26.6.app/Contents/Developer
           xcodebuild -version
+          xcrun simctl list runtimes | grep -F "iOS 26.5"
+          xcrun simctl list devices available | grep -F "iPhone 17 Pro Max"
 
-      - name: Verify shared build inputs
+      - name: Verify release build inputs
+        if: ${{ steps.release-metadata.outputs.needed == 'true' }}
         run: |
           test -f CasaNative.xcodeproj/xcshareddata/xcschemes/CasaNative.xcscheme
           test -f CasaNative.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
@@ -45,6 +408,7 @@ jobs:
           test -f THIRD_PARTY_NOTICES.md
 
       - name: Resolve locked packages
+        if: ${{ steps.release-metadata.outputs.needed == 'true' }}
         run: |
           xcodebuild \
             -resolvePackageDependencies \
@@ -55,8 +419,59 @@ jobs:
           git diff --exit-code -- \
             CasaNative.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 
-      - name: Build unsigned iPhoneOS Release app
+      - name: Run exact simulator tests
+        if: ${{ steps.release-metadata.outputs.needed == 'true' }}
+        shell: bash
         run: |
+          set -o pipefail
+          mkdir -p ReleaseResults
+          xcodebuild \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Debug \
+            -destination "$DESTINATION" \
+            -derivedDataPath "$DERIVED_DATA_PATH" \
+            -resultBundlePath ReleaseResults/CasaNative.xcresult \
+            -onlyUsePackageVersionsFromResolvedFile \
+            -disableAutomaticPackageResolution \
+            -parallel-testing-enabled NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            test 2>&1 | tee "$RUNNER_TEMP/CasaNative-release-tests.log"
+          if grep -E '(^|/)(CasaNative|CasaNativeTests)/.*:[0-9]+:[0-9]+: warning:' \
+            "$RUNNER_TEMP/CasaNative-release-tests.log"; then
+            echo "Casa Native source warnings are treated as errors." >&2
+            exit 1
+          fi
+
+      - name: Run Xcode static analysis
+        if: ${{ steps.release-metadata.outputs.needed == 'true' }}
+        shell: bash
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Debug \
+            -destination "$DESTINATION" \
+            -derivedDataPath "$DERIVED_DATA_PATH" \
+            -resultBundlePath ReleaseResults/CasaNativeAnalyze.xcresult \
+            -onlyUsePackageVersionsFromResolvedFile \
+            -disableAutomaticPackageResolution \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            analyze 2>&1 | tee "$RUNNER_TEMP/CasaNative-release-analyze.log"
+          if grep -E '(^|/)(CasaNative|CasaNativeTests)/.*:[0-9]+:[0-9]+: warning:' \
+            "$RUNNER_TEMP/CasaNative-release-analyze.log"; then
+            echo "Casa Native source warnings are treated as errors." >&2
+            exit 1
+          fi
+
+      - name: Build unsigned iPhoneOS Release app
+        if: ${{ steps.release-metadata.outputs.needed == 'true' }}
+        shell: bash
+        run: |
+          set -o pipefail
           xcodebuild \
             -project "$PROJECT" \
             -scheme "$SCHEME" \
@@ -69,10 +484,21 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY= \
-            build
+            build 2>&1 | tee "$RUNNER_TEMP/CasaNative-release-build.log"
+          if grep -E '(^|/)(CasaNative|CasaNativeTests)/.*:[0-9]+:[0-9]+: warning:' \
+            "$RUNNER_TEMP/CasaNative-release-build.log"; then
+            echo "Casa Native source warnings are treated as errors." >&2
+            exit 1
+          fi
 
       - name: Package unsigned IPA and checksum
+        id: package
+        if: ${{ steps.release-metadata.outputs.needed == 'true' }}
+        env:
+          EXPECTED_BUILD: ${{ steps.release-metadata.outputs.build }}
+          VERSION: ${{ steps.release-metadata.outputs.version }}
         run: |
+          set -euo pipefail
           APP_PATH="$DERIVED_DATA_PATH/Build/Products/Release-iphoneos/Casa Native.app"
           PACKAGE_ROOT="$RUNNER_TEMP/CasaNative-package"
           PACKAGE_APP="$PACKAGE_ROOT/Payload/Casa Native.app"
@@ -83,6 +509,14 @@ jobs:
             echo "Expected an unsigned app, but code-signature verification succeeded." >&2
             exit 1
           fi
+
+          app_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_PATH/Info.plist")"
+          app_build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP_PATH/Info.plist")"
+          test "$app_version" = "$VERSION"
+          if [[ -n "$EXPECTED_BUILD" ]]; then
+            test "$app_build" = "$EXPECTED_BUILD"
+          fi
+
           mkdir -p "$PACKAGE_ROOT/Payload" "$OUTPUT_DIR"
           /usr/bin/ditto "$APP_PATH" "$PACKAGE_APP"
           /usr/bin/ditto LICENSE "$PACKAGE_APP/LICENSE"
@@ -97,40 +531,109 @@ jobs:
           cd "$OUTPUT_DIR"
           /usr/bin/shasum -a 256 CasaNative-unsigned.ipa \
             > CasaNative-unsigned.ipa.sha256
+          /usr/bin/shasum -a 256 -c CasaNative-unsigned.ipa.sha256
+          echo "build=$app_build" >> "$GITHUB_OUTPUT"
 
-      - name: Write release warning
-        run: |
-          /usr/bin/printf '%s\n' \
-            'This release contains an unsigned iPhoneOS build.' \
-            '' \
-            '**CasaNative-unsigned.ipa is not directly installable.** It has no Apple signing identity or provisioning profile. Re-sign it for your own device with Xcode-compatible signing tools or a trusted sideloading tool before installation.' \
-            '' \
-            'Verify the IPA with `shasum -a 256 -c CasaNative-unsigned.ipa.sha256` before re-signing. See README.md for Xcode and Sideloadly instructions. Use only your own Apple account and obtain Sideloadly only from https://sideloadly.io/.' \
-            '' \
-            'No Apple certificate, provisioning profile, Apple ID, or Apple signing secret was used to create these assets.' \
-            > "$RUNNER_TEMP/release-notes.md"
-
-      - name: Create or update GitHub release
+      - name: Write release notes
+        if: ${{ steps.release-metadata.outputs.needed == 'true' }}
         env:
-          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.release-metadata.outputs.version }}
         run: |
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" \
-              "$OUTPUT_DIR/CasaNative-unsigned.ipa" \
-              "$OUTPUT_DIR/CasaNative-unsigned.ipa.sha256" \
-              "$OUTPUT_DIR/LICENSE" \
-              "$OUTPUT_DIR/THIRD_PARTY_NOTICES.md" \
-              --clobber
-            gh release edit "$GITHUB_REF_NAME" \
-              --title "Casa Native $GITHUB_REF_NAME" \
+          set -euo pipefail
+          {
+            /usr/bin/printf '%s\n' \
+              'This release contains an unsigned iPhoneOS build.' \
+              '' \
+              '**CasaNative-unsigned.ipa is not directly installable.** It has no Apple signing identity or provisioning profile. Re-sign it for your own device with Xcode-compatible signing tools or a trusted sideloading tool before installation.' \
+              '' \
+              'Verify the IPA with `shasum -a 256 -c CasaNative-unsigned.ipa.sha256` before re-signing. See README.md for Xcode and Sideloadly instructions. Use only your own Apple account and obtain Sideloadly only from https://sideloadly.io/.' \
+              '' \
+              'No Apple certificate, provisioning profile, Apple ID, or Apple signing secret was used to create these assets.' \
+              '' \
+              '## Changes' \
+              ''
+            awk -v heading="## [$VERSION]" '
+              index($0, heading) == 1 { copying = 1; next }
+              copying && /^## \[/ { exit }
+              copying { print }
+            ' CHANGELOG.md
+          } > "$RUNNER_TEMP/release-notes.md"
+          grep -Fq '## Changes' "$RUNNER_TEMP/release-notes.md"
+
+      - name: Commit, tag, and atomically push release metadata
+        id: push
+        if: >-
+          ${{
+            steps.release-metadata.outputs.needed == 'true' &&
+            needs.gate.outputs.recovery_tag == ''
+          }}
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+          TAG: ${{ steps.release-metadata.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh auth setup-git
+          git fetch --no-tags origin main
+          if [[ "$(git rev-parse FETCH_HEAD)" != "$BASE_SHA" ]]; then
+            echo "origin/main advanced while the release was being validated." >&2
+            exit 1
+          fi
+
+          git config user.name "Aarik Mudgal"
+          git config user.email "aarikmudgal@gmail.com"
+          git add CHANGELOG.md CasaNative.xcodeproj/project.pbxproj
+          test -n "$(git diff --cached --name-only)"
+          git commit -m "chore(release): $TAG"
+          git tag -a "$TAG" -m "Casa Native $TAG"
+          git push --atomic origin "HEAD:refs/heads/main" "refs/tags/$TAG"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update draft release assets
+        if: ${{ steps.release-metadata.outputs.needed == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+          TAG: ${{ steps.release-metadata.outputs.tag }}
+        run: |
+          set -euo pipefail
+          assets=(
+            "$OUTPUT_DIR/CasaNative-unsigned.ipa"
+            "$OUTPUT_DIR/CasaNative-unsigned.ipa.sha256"
+            "$OUTPUT_DIR/LICENSE"
+            "$OUTPUT_DIR/THIRD_PARTY_NOTICES.md"
+          )
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            is_draft="$(gh release view "$TAG" --json isDraft --jq '.isDraft')"
+            if [[ "$is_draft" != "true" ]]; then
+              echo "Release $TAG is already published and will not be modified." >&2
+              exit 1
+            fi
+            gh release edit "$TAG" \
+              --title "Casa Native $TAG" \
               --notes-file "$RUNNER_TEMP/release-notes.md"
+            gh release upload "$TAG" "${assets[@]}" --clobber
           else
-            gh release create "$GITHUB_REF_NAME" \
-              "$OUTPUT_DIR/CasaNative-unsigned.ipa" \
-              "$OUTPUT_DIR/CasaNative-unsigned.ipa.sha256" \
-              "$OUTPUT_DIR/LICENSE" \
-              "$OUTPUT_DIR/THIRD_PARTY_NOTICES.md" \
+            gh release create "$TAG" "${assets[@]}" \
+              --draft \
+              --fail-on-no-commits \
               --verify-tag \
-              --title "Casa Native $GITHUB_REF_NAME" \
+              --title "Casa Native $TAG" \
               --notes-file "$RUNNER_TEMP/release-notes.md"
           fi
+
+      - name: Verify and publish release
+        if: ${{ steps.release-metadata.outputs.needed == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+          TAG: ${{ steps.release-metadata.outputs.tag }}
+        run: |
+          set -euo pipefail
+          release_json="$(gh release view "$TAG" --json assets,isDraft,tagName)"
+          test "$(jq -r '.tagName' <<<"$release_json")" = "$TAG"
+          test "$(jq -r '.isDraft' <<<"$release_json")" = "true"
+
+          expected='CasaNative-unsigned.ipa,CasaNative-unsigned.ipa.sha256,LICENSE,THIRD_PARTY_NOTICES.md'
+          actual="$(jq -r '[.assets[].name] | sort | join(",")' <<<"$release_json")"
+          test "$actual" = "$expected"
+
+          gh release edit "$TAG" --draft=false --latest
