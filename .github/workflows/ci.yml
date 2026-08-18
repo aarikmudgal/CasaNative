@@ -15,7 +15,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
+  repository-quality:
+    name: Repository quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      PYTHONPYCACHEPREFIX: ${{ runner.temp }}/python-cache
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate repository and release metadata
+        run: |
+          python3 -m py_compile scripts/release_tool.py
+          python3 -m unittest discover -s scripts/tests -p 'test_*.py'
+          python3 scripts/release_tool.py check
+          python3 scripts/release_tool.py plan --json
+          git diff --check
+          git diff --exit-code
+
+  simulator-tests:
     name: iPhone 17 Pro Max / iOS 26.5
     runs-on: macos-26
     timeout-minutes: 45
@@ -23,7 +46,7 @@ jobs:
       PROJECT: CasaNative.xcodeproj
       SCHEME: CasaNative
       DESTINATION: "platform=iOS Simulator,name=iPhone 17 Pro Max,OS=26.5"
-      DERIVED_DATA_PATH: .ci-derived
+      DERIVED_DATA_PATH: .ci-derived/test
       RESULT_BUNDLE_PATH: TestResults/CasaNative.xcresult
 
     steps:
@@ -56,7 +79,9 @@ jobs:
             CasaNative.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 
       - name: Run unsigned simulator tests
+        shell: bash
         run: |
+          set -o pipefail
           mkdir -p TestResults
           xcodebuild \
             -project "$PROJECT" \
@@ -70,7 +95,12 @@ jobs:
             -parallel-testing-enabled NO \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            test
+            test 2>&1 | tee "$RUNNER_TEMP/CasaNative-tests.log"
+          if grep -E '(^|/)(CasaNative|CasaNativeTests)/.*:[0-9]+:[0-9]+: warning:' \
+            "$RUNNER_TEMP/CasaNative-tests.log"; then
+            echo "Casa Native source warnings are treated as errors." >&2
+            exit 1
+          fi
 
       - name: Upload failed test result
         if: ${{ failure() }}
@@ -78,6 +108,80 @@ jobs:
         with:
           name: "CasaNative-xcresult-${{ github.run_id }}"
           path: TestResults/CasaNative.xcresult
+          if-no-files-found: ignore
+          retention-days: 7
+          compression-level: 0
+          include-hidden-files: true
+
+  static-analysis:
+    name: Xcode static analysis
+    runs-on: macos-26
+    timeout-minutes: 45
+    env:
+      PROJECT: CasaNative.xcodeproj
+      SCHEME: CasaNative
+      DESTINATION: "platform=iOS Simulator,name=iPhone 17 Pro Max,OS=26.5"
+      DERIVED_DATA_PATH: .ci-derived/analyze
+      RESULT_BUNDLE_PATH: AnalyzeResults/CasaNativeAnalyze.xcresult
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Select Xcode 26.6
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.6.app/Contents/Developer
+          xcodebuild -version
+          xcrun simctl list runtimes | grep -F "iOS 26.5"
+          xcrun simctl list devices available | grep -F "iPhone 17 Pro Max"
+
+      - name: Verify shared build inputs
+        run: |
+          test -f CasaNative.xcodeproj/xcshareddata/xcschemes/CasaNative.xcscheme
+          test -f CasaNative.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+
+      - name: Resolve locked packages
+        run: |
+          xcodebuild \
+            -resolvePackageDependencies \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -derivedDataPath "$DERIVED_DATA_PATH" \
+            -onlyUsePackageVersionsFromResolvedFile
+          git diff --exit-code -- \
+            CasaNative.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+
+      - name: Analyze Casa Native
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p AnalyzeResults
+          xcodebuild \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Debug \
+            -destination "$DESTINATION" \
+            -derivedDataPath "$DERIVED_DATA_PATH" \
+            -resultBundlePath "$RESULT_BUNDLE_PATH" \
+            -onlyUsePackageVersionsFromResolvedFile \
+            -disableAutomaticPackageResolution \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            analyze 2>&1 | tee "$RUNNER_TEMP/CasaNative-analyze.log"
+          if grep -E '(^|/)(CasaNative|CasaNativeTests)/.*:[0-9]+:[0-9]+: warning:' \
+            "$RUNNER_TEMP/CasaNative-analyze.log"; then
+            echo "Casa Native source warnings are treated as errors." >&2
+            exit 1
+          fi
+
+      - name: Upload failed analysis result
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: "CasaNative-analyze-xcresult-${{ github.run_id }}"
+          path: AnalyzeResults/CasaNativeAnalyze.xcresult
           if-no-files-found: ignore
           retention-days: 7
           compression-level: 0
