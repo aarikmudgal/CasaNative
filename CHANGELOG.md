@@ -6,7 +6,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The
 
 ## [Unreleased]
 
-No unreleased changes yet.
+### Added
+
+- Lazy native thumbnails in the Files grid for supported images, documents, PDFs, and small videos, with a 16 MiB automatic-download limit, two-job concurrency cap, memory-only cache, and icon fallback.
 
 ## [0.1.0] - 2026-08-13
 

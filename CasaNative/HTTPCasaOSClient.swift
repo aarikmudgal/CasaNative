@@ -4,18 +4,28 @@ struct CasaFileTransferLimits: Equatable, Sendable {
     static let production = CasaFileTransferLimits(
         inMemoryBytes: 128 * 1_024 * 1_024,
         previewBytes: 1 * 1_024 * 1_024 * 1_024,
-        uploadBytes: 128 * 1_024 * 1_024
+        uploadBytes: 128 * 1_024 * 1_024,
+        thumbnailBytes: 16 * 1_024 * 1_024
     )
 
     let inMemoryBytes: Int64
     let previewBytes: Int64
     let uploadBytes: Int64
+    let thumbnailBytes: Int64
 
-    init(inMemoryBytes: Int64, previewBytes: Int64, uploadBytes: Int64) {
-        precondition(inMemoryBytes > 0 && previewBytes > 0 && uploadBytes > 0)
+    init(
+        inMemoryBytes: Int64,
+        previewBytes: Int64,
+        uploadBytes: Int64,
+        thumbnailBytes: Int64 = 16 * 1_024 * 1_024
+    ) {
+        precondition(
+            inMemoryBytes > 0 && previewBytes > 0 && uploadBytes > 0 && thumbnailBytes > 0
+        )
         self.inMemoryBytes = inMemoryBytes
         self.previewBytes = previewBytes
         self.uploadBytes = uploadBytes
+        self.thumbnailBytes = thumbnailBytes
     }
 }
 
@@ -683,6 +693,57 @@ actor HTTPCasaOSClient: CasaOSClient {
         }
     }
 
+    func prepareFileForThumbnail(at path: String, named filename: String) async throws -> URL {
+        guard let thumbnail = CasaFilePathPolicy.normalizedPreview(path: path, filename: filename) else {
+            throw CasaOSError.contract(
+                "Casa Native only prepares thumbnails for safe absolute file paths."
+            )
+        }
+        try Task.checkCancellation()
+
+        var downloadedURL: URL?
+        var thumbnailDirectory: URL?
+        do {
+            let transportURL = try await download(
+                path: "/v1/file",
+                query: ["path": thumbnail.path],
+                maximumBytes: fileTransferLimits.thumbnailBytes,
+                limitKind: "thumbnail"
+            )
+            downloadedURL = transportURL
+            try Task.checkCancellation()
+
+            let directory = FileManager.default.temporaryDirectory
+                .appendingPathComponent(
+                    "CasaNativeThumbnail-\(UUID().uuidString)",
+                    isDirectory: true
+                )
+            thumbnailDirectory = directory
+            try FileManager.default.createDirectory(
+                at: directory,
+                withIntermediateDirectories: true
+            )
+            try Task.checkCancellation()
+
+            let destination = directory.appendingPathComponent(
+                thumbnail.filename,
+                isDirectory: false
+            )
+            try FileManager.default.moveItem(at: transportURL, to: destination)
+            downloadedURL = nil
+            try Task.checkCancellation()
+            return destination
+        } catch {
+            if let thumbnailDirectory {
+                try? FileManager.default.removeItem(at: thumbnailDirectory)
+            }
+            if let downloadedURL {
+                try? FileManager.default.removeItem(at: downloadedURL)
+            }
+            throw error
+        }
+    }
+
     func deleteFiles(at paths: [String]) async throws {
         let normalizedPaths = paths.compactMap(CasaFilePathPolicy.normalizedMutableItem)
         guard !paths.isEmpty, normalizedPaths.count == paths.count else {
@@ -986,6 +1047,7 @@ actor HTTPCasaOSClient: CasaOSClient {
         path: String,
         query: [String: String],
         maximumBytes: Int64,
+        limitKind: String = "preview",
         retryOnUnauthorized: Bool = true
     ) async throws -> URL {
         if tokens == nil {
@@ -1006,7 +1068,7 @@ actor HTTPCasaOSClient: CasaOSClient {
         let transfer = try BoundedURLSessionTransfer(
             configuration: session.configuration,
             maximumBytes: maximumBytes,
-            limitKind: "preview",
+            limitKind: limitKind,
             destination: .file(temporaryURL)
         )
         let response = try await transfer.start(request: request)
@@ -1017,6 +1079,7 @@ actor HTTPCasaOSClient: CasaOSClient {
                     path: path,
                     query: query,
                     maximumBytes: maximumBytes,
+                    limitKind: limitKind,
                     retryOnUnauthorized: false
                 )
             }
