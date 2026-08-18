@@ -13,7 +13,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Security
 
-- I made release publication fail closed unless `RELEASE_TOKEN` authenticates as `aarikmudgal`, and I assigned every repository path to my account in CODEOWNERS.
+- Release publication now fails closed unless `RELEASE_TOKEN` authenticates as `aarikmudgal`, and CODEOWNERS assigns every repository path to `@aarikmudgal`.
 
 ## [0.1.0] - 2026-08-13
 
