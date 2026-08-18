@@ -266,7 +266,7 @@ jobs:
     timeout-minutes: 90
     permissions:
       actions: read
-      contents: write
+      contents: read
     env:
       BASE_SHA: ${{ needs.gate.outputs.target_sha }}
       DERIVED_DATA_PATH: .release-derived
