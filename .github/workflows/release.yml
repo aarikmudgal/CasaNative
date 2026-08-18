@@ -59,6 +59,13 @@ jobs:
             echo "RELEASE_TOKEN must authenticate as aarikmudgal." >&2
             exit 1
           fi
+          repository_push_allowed="$(
+            gh api "repos/$GITHUB_REPOSITORY" --jq '.permissions.push'
+          )"
+          if [[ "$repository_push_allowed" != "true" ]]; then
+            echo "RELEASE_TOKEN needs Contents read/write access to this repository." >&2
+            exit 1
+          fi
 
       - name: Resolve trusted release target
         id: resolve
