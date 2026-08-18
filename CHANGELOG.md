@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+No unreleased changes yet.
+
+## [0.2.0] - 2026-08-18
+
 ### Added
 
 - Lazy native thumbnails in square Files-grid preview wells for supported images, documents, PDFs, and small videos, preserving full aspect ratio with native letterboxing instead of cropping, plus a 16 MiB automatic-download limit, two-job concurrency cap, memory-only cache, and icon fallback.
@@ -64,5 +68,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Tagged release IPAs are unsigned and must be re-signed before installation.
 - Detailed SMART requires saved SSH credentials, server-side smartmontools, suitable sudo permission, and working drive or USB-bridge SMART passthrough. Casa Native reports but does not guess a smartctl `-d` device type when a bridge requires one.
 
-[Unreleased]: https://github.com/aarikmudgal/CasaNative/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/aarikmudgal/CasaNative/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/aarikmudgal/CasaNative/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/aarikmudgal/CasaNative/releases/tag/v0.1.0
