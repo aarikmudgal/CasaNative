@@ -249,7 +249,7 @@ Free Apple development profiles normally expire after seven days, so the app mus
 
 ## Releases and CI
 
-Every branch push and pull request runs three independent CI gates:
+Every pull request and each push to `main` runs three independent CI gates:
 
 - Repository and release-metadata validation, including the release tool's unit tests.
 - Unsigned tests on GitHub's `macos-26` runner with Xcode 26.6 and an iPhone 17 Pro Max simulator running iOS 26.5.
@@ -270,9 +270,9 @@ For a planned release, the workflow promotes `[Unreleased]`, updates both Xcode 
 
 The IPA also contains the project license and third-party notices. It contains no Apple certificate, provisioning profile, Apple ID, or Apple signing secret. Release IPAs must be re-signed as described above.
 
-Automated publication requires the `RELEASE_TOKEN` Actions secret so every release push and GitHub Release is authenticated by my GitHub account. I provision this as an expiring fine-grained personal access token limited to this repository with read/write **Contents** access. Before release preparation, the workflow requires the secret and verifies that it authenticates as `aarikmudgal`; it never falls back to a bot identity. I rotate or remove the token when it is no longer needed and never place it in source, logs, pull requests, or artifacts.
+Automated publication requires the `RELEASE_TOKEN` Actions secret so every release push and GitHub Release is authenticated as `aarikmudgal`. Use a fine-grained personal access token limited to this repository with read/write **Contents** access. Before release preparation, the workflow requires the secret and verifies the authenticated account; it never falls back to a bot identity. Store the token only in GitHub Actions secrets, revoke it if it is exposed or no longer needed, and never place it in source, logs, pull requests, or artifacts.
 
-I configure the `main` ruleset to let my Repository Admin identity bypass it only for the account-authenticated release commit and annotated tag. A rule that blocks my identity safely stops the atomic push, and no release is published.
+The `main` ruleset grants the Repository Admin identity a bypass for the account-authenticated release commit and annotated tag. If that identity cannot update the protected branch, the atomic push stops safely and no release is published.
 
 The Release workflow also has a manual recovery entry point. A blank recovery tag retries normal release planning for the checked current `main`. Supplying an existing canonical tag such as `v0.2.0` is only for an interrupted draft: the workflow requires the latest annotated release tag contained in `main`, refuses to alter an already-published release, and reruns metadata checks, simulator tests, static analysis, and the device build before replacing draft assets and publishing. Enable GitHub's immutable releases after confirming the workflow; its draft-first publication order is compatible with immutable assets and tags.
 
