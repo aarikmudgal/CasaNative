@@ -11,6 +11,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Lazy native thumbnails in square Files-grid preview wells for supported images, documents, PDFs, and small videos, preserving full aspect ratio with native letterboxing instead of cropping, plus a 16 MiB automatic-download limit, two-job concurrency cap, memory-only cache, and icon fallback.
 - Post-merge semantic versioning and draft-first release automation gated by repository checks, exact simulator tests, Xcode static analysis, CodeQL, atomic metadata/tag pushes, and recoverable unsigned-IPA publication.
 
+### Changed
+
+- Automatic releases reuse the successful exact-commit CI and CodeQL results, then run only release metadata validation, locked-package resolution, the unsigned device build, asset verification, and publication. The generated metadata commit skips redundant push CI; manual tagged recovery retains full validation reruns.
+
 ### Security
 
 - Release publication now fails closed unless `RELEASE_TOKEN` authenticates as `aarikmudgal`, and CODEOWNERS assigns every repository path to `@aarikmudgal`.

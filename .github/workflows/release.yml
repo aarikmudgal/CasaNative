@@ -155,6 +155,7 @@ jobs:
                   )
                 | select(.name != "Verify completed main checks")
                 | select(.name != "Prepare, validate, build, and publish")
+                | select(.name != "Prepare, build, and publish")
               ]
               | unique_by(.id)
             ' "$RUNNER_TEMP/check-pages.json" > "$RUNNER_TEMP/checks.json"
@@ -260,7 +261,7 @@ jobs:
           exit 1
 
   release:
-    name: Prepare, validate, build, and publish
+    name: Prepare, build, and publish
     needs: gate
     runs-on: macos-26
     timeout-minutes: 90
@@ -348,9 +349,9 @@ jobs:
           TAG: ${{ steps.release-metadata.outputs.tag }}
         run: |
           set -euo pipefail
-          python3 -m py_compile scripts/release_tool.py
-          python3 -m unittest discover -s scripts/tests -p 'test_*.py'
           if [[ -n "$RECOVERY_TAG" ]]; then
+            python3 -m py_compile scripts/release_tool.py
+            python3 -m unittest discover -s scripts/tests -p 'test_*.py'
             python3 scripts/release_tool.py check
           else
             python3 scripts/release_tool.py check --expected-tag "$TAG"
@@ -411,6 +412,14 @@ jobs:
         run: |
           sudo xcode-select -s /Applications/Xcode_26.6.app/Contents/Developer
           xcodebuild -version
+
+      - name: Verify recovery simulator
+        if: >-
+          ${{
+            steps.release-metadata.outputs.needed == 'true' &&
+            needs.gate.outputs.recovery_tag != ''
+          }}
+        run: |
           xcrun simctl list runtimes | grep -F "iOS 26.5"
           xcrun simctl list devices available | grep -F "iPhone 17 Pro Max"
 
@@ -434,8 +443,12 @@ jobs:
           git diff --exit-code -- \
             CasaNative.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 
-      - name: Run exact simulator tests
-        if: ${{ steps.release-metadata.outputs.needed == 'true' }}
+      - name: Run recovery simulator tests
+        if: >-
+          ${{
+            steps.release-metadata.outputs.needed == 'true' &&
+            needs.gate.outputs.recovery_tag != ''
+          }}
         shell: bash
         run: |
           set -o pipefail
@@ -459,8 +472,12 @@ jobs:
             exit 1
           fi
 
-      - name: Run Xcode static analysis
-        if: ${{ steps.release-metadata.outputs.needed == 'true' }}
+      - name: Run recovery Xcode static analysis
+        if: >-
+          ${{
+            steps.release-metadata.outputs.needed == 'true' &&
+            needs.gate.outputs.recovery_tag != ''
+          }}
         shell: bash
         run: |
           set -o pipefail
@@ -598,7 +615,7 @@ jobs:
           git config user.email "aarikmudgal@gmail.com"
           git add CHANGELOG.md CasaNative.xcodeproj/project.pbxproj
           test -n "$(git diff --cached --name-only)"
-          git commit -m "chore(release): $TAG"
+          git commit -m "chore(release): $TAG" -m "[skip ci]"
           git tag -a "$TAG" -m "Casa Native $TAG"
           git push --atomic origin "HEAD:refs/heads/main" "refs/tags/$TAG"
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
