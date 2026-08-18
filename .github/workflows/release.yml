@@ -258,7 +258,7 @@ jobs:
       DESTINATION: "platform=iOS Simulator,name=iPhone 17 Pro Max,OS=26.5"
       OUTPUT_DIR: dist
       PROJECT: CasaNative.xcodeproj
-      PYTHONPYCACHEPREFIX: ${{ runner.temp }}/python-cache
+      PYTHONPYCACHEPREFIX: /tmp/casanative-python-cache-${{ github.run_id }}
       RECOVERY_TAG: ${{ needs.gate.outputs.recovery_tag }}
       SCHEME: CasaNative
 
