@@ -249,7 +249,7 @@ Free Apple development profiles normally expire after seven days, so the app mus
 
 ## Releases and CI
 
-Every pull request and each push to `main` runs three independent CI gates:
+Every pull request and each non-release push to `main` runs three independent CI gates:
 
 - Repository and release-metadata validation, including the release tool's unit tests.
 - Unsigned tests on GitHub's `macos-26` runner with Xcode 26.6 and an iPhone 17 Pro Max simulator running iOS 26.5.
