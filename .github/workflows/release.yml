@@ -45,6 +45,21 @@ jobs:
       verify_checks: ${{ steps.resolve.outputs.verify_checks }}
 
     steps:
+      - name: Require account-owned release token
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "Set the RELEASE_TOKEN Actions secret before publishing." >&2
+            exit 1
+          fi
+          authenticated_login="$(gh api user --jq '.login')"
+          if [[ "$authenticated_login" != "aarikmudgal" ]]; then
+            echo "RELEASE_TOKEN must authenticate as aarikmudgal." >&2
+            exit 1
+          fi
+
       - name: Resolve trusted release target
         id: resolve
         env:
@@ -298,7 +313,7 @@ jobs:
             needs.gate.outputs.recovery_tag == ''
           }}
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           TAG: ${{ steps.release-metadata.outputs.tag }}
         run: |
           set -euo pipefail
@@ -365,7 +380,7 @@ jobs:
             needs.gate.outputs.recovery_tag != ''
           }}
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           TAG: ${{ steps.release-metadata.outputs.tag }}
         run: |
           set -euo pipefail
@@ -568,7 +583,7 @@ jobs:
             needs.gate.outputs.recovery_tag == ''
           }}
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           TAG: ${{ steps.release-metadata.outputs.tag }}
         run: |
           set -euo pipefail
@@ -591,7 +606,7 @@ jobs:
       - name: Create or update draft release assets
         if: ${{ steps.release-metadata.outputs.needed == 'true' }}
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           TAG: ${{ steps.release-metadata.outputs.tag }}
         run: |
           set -euo pipefail
@@ -624,7 +639,7 @@ jobs:
       - name: Verify and publish release
         if: ${{ steps.release-metadata.outputs.needed == 'true' }}
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           TAG: ${{ steps.release-metadata.outputs.tag }}
         run: |
           set -euo pipefail
