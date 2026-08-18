@@ -272,7 +272,7 @@ The IPA also contains the project license and third-party notices. It contains n
 
 Automated publication requires the `RELEASE_TOKEN` Actions secret so every release push and GitHub Release is authenticated as `aarikmudgal`. Use a fine-grained personal access token limited to this repository with read/write **Contents** access. Before release preparation, the workflow requires the secret and verifies the authenticated account; it never falls back to a bot identity. Store the token only in GitHub Actions secrets, revoke it if it is exposed or no longer needed, and never place it in source, logs, pull requests, or artifacts.
 
-The `main` ruleset grants the Repository Admin identity a bypass for the account-authenticated release commit and annotated tag. If that identity cannot update the protected branch, the atomic push stops safely and no release is published.
+Configure the `main` ruleset to grant the Repository Admin identity a bypass for the account-authenticated release commit and annotated tag. If that identity cannot update the protected branch, the atomic push stops safely and no release is published.
 
 The Release workflow also has a manual recovery entry point. A blank recovery tag retries normal release planning for the checked current `main`. Supplying an existing canonical tag such as `v0.2.0` is only for an interrupted draft: the workflow requires the latest annotated release tag contained in `main`, refuses to alter an already-published release, and reruns metadata checks, simulator tests, static analysis, and the device build before replacing draft assets and publishing. Enable GitHub's immutable releases after confirming the workflow; its draft-first publication order is compatible with immutable assets and tags.
 
