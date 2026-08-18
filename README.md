@@ -56,7 +56,7 @@ Stock CasaOS does not advertise `_casaos._tcp` through Bonjour. Exact automatic 
 - Starts Files at `/DATA`, supports navigation across the server filesystem, and opens authenticated downloads in native Quick Look.
 - Allows folder creation, upload, rename, copy, move, and guarded deletion at any safe absolute server path permitted by the CasaOS service and host; explicit downloads do not modify the server.
 - Supports multi-file selection for uploads, shows per-file progress and a completion summary, and continues past individual file failures.
-- Offers List and Grid layouts and remembers the selected layout on the iPhone.
+- Offers List and Grid layouts and remembers the selected layout on the iPhone. Grid lazily renders native thumbnails for supported files up to 16 MiB; larger, unknown, or unsupported files retain their type icon and remain available through explicit Quick Look preview.
 - Uses CasaOS's non-overwriting copy/move mode by default. Accepted transfers are shown as queued because CasaOS performs them asynchronously.
 - **Filesystem warning:** Casa Native is not a filesystem sandbox and adds no `/DATA` mutation boundary. Requests use the signed-in CasaOS session, but stock file handlers run with CasaOS daemon privileges rather than a documented per-account filesystem ACL. A privileged backend may alter or permanently delete operating-system and application files. Review every path and destructive confirmation carefully.
 - Confirms CasaOS restart and shutdown operations before sending them.

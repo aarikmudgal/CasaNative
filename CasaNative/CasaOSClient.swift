@@ -27,6 +27,7 @@ protocol CasaOSClient: Sendable {
         collisionPolicy: CasaFileCollisionPolicy
     ) async throws
     func prepareFileForPreview(at path: String, named filename: String) async throws -> URL
+    func prepareFileForThumbnail(at path: String, named filename: String) async throws -> URL
     func deleteFiles(at paths: [String]) async throws
     func setPowerState(_ state: PowerState) async throws
 }
@@ -645,6 +646,33 @@ actor MockCasaOSClient: CasaOSClient {
             )
             let url = directory.appendingPathComponent(preview.filename, isDirectory: false)
             try Data("Casa Native mock preview for \(preview.path)\n".utf8).write(to: url)
+            return url
+        } catch {
+            try? FileManager.default.removeItem(at: directory)
+            throw error
+        }
+    }
+
+    func prepareFileForThumbnail(at path: String, named filename: String) async throws -> URL {
+        try requireSession()
+        guard let thumbnail = CasaFilePathPolicy.normalizedPreview(path: path, filename: filename) else {
+            throw CasaOSError.contract(
+                "Casa Native only prepares thumbnails for safe absolute file paths."
+            )
+        }
+        try Task.checkCancellation()
+
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CasaNativeThumbnail-\(UUID().uuidString)", isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(
+                at: directory,
+                withIntermediateDirectories: true
+            )
+            try Task.checkCancellation()
+            let url = directory.appendingPathComponent(thumbnail.filename, isDirectory: false)
+            try Data("Casa Native mock thumbnail for \(thumbnail.path)\n".utf8).write(to: url)
+            try Task.checkCancellation()
             return url
         } catch {
             try? FileManager.default.removeItem(at: directory)

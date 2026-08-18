@@ -349,6 +349,64 @@ final class MockCasaOSClientTests: XCTestCase {
         XCTAssertEqual(try temporaryPreviewItemNames(), before)
     }
 
+    func testMockThumbnailReturnsNamedTemporaryPayload() async throws {
+        let client = MockCasaOSClient()
+
+        let url = try await client.prepareFileForThumbnail(
+            at: "/DATA/Photos/photo.jpg",
+            named: "cover.jpg"
+        )
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        XCTAssertEqual(url.lastPathComponent, "cover.jpg")
+        XCTAssertTrue(url.deletingLastPathComponent().lastPathComponent.hasPrefix(
+            "CasaNativeThumbnail-"
+        ))
+        XCTAssertTrue(
+            String(decoding: try Data(contentsOf: url), as: UTF8.self)
+                .contains("/DATA/Photos/photo.jpg")
+        )
+    }
+
+    func testMockThumbnailPlacementFailureRemovesTemporaryDirectory() async throws {
+        let before = try temporaryThumbnailItemNames()
+        let client = MockCasaOSClient()
+        let overlongLegalFilename = String(repeating: "a", count: 300) + ".png"
+
+        do {
+            _ = try await client.prepareFileForThumbnail(
+                at: "/DATA/Photos/photo.png",
+                named: overlongLegalFilename
+            )
+            XCTFail("Expected mock thumbnail placement to fail")
+        } catch {
+            XCTAssertFalse(error is CasaOSError)
+        }
+
+        XCTAssertEqual(try temporaryThumbnailItemNames(), before)
+    }
+
+    func testMockThumbnailCancellationLeavesNoTemporaryDirectory() async throws {
+        let before = try temporaryThumbnailItemNames()
+        let client = MockCasaOSClient()
+
+        let task = Task {
+            try await client.prepareFileForThumbnail(
+                at: "/DATA/Photos/photo.png",
+                named: "photo.png"
+            )
+        }
+        task.cancel()
+        do {
+            _ = try await task.value
+            XCTFail("Expected mock thumbnail preparation cancellation")
+        } catch {
+            XCTAssertTrue(error is CancellationError)
+        }
+
+        XCTAssertEqual(try temporaryThumbnailItemNames(), before)
+    }
+
     func testMockCreateAppearsInParentAndDeleteRemovesNestedSubtree() async throws {
         let client = makeFileClient()
 
@@ -483,6 +541,16 @@ final class MockCasaOSClientTests: XCTestCase {
         )
         return Set(
             urls.map(\.lastPathComponent).filter { $0.hasPrefix("CasaNativePreview-") }
+        )
+    }
+
+    private func temporaryThumbnailItemNames() throws -> Set<String> {
+        let urls = try FileManager.default.contentsOfDirectory(
+            at: FileManager.default.temporaryDirectory,
+            includingPropertiesForKeys: nil
+        )
+        return Set(
+            urls.map(\.lastPathComponent).filter { $0.hasPrefix("CasaNativeThumbnail-") }
         )
     }
 }

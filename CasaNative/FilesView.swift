@@ -1,6 +1,8 @@
 import SwiftUI
 import UniformTypeIdentifiers
 import QuickLook
+@preconcurrency import QuickLookThumbnailing
+import UIKit
 
 struct FilesView: View {
     private static let maximumInMemoryTransferBytes: Int64 = 128 * 1_024 * 1_024
@@ -8,7 +10,9 @@ struct FilesView: View {
     let client: any CasaOSClient
     var path: String = CasaFile.rootPath
 
+    @Environment(\.scenePhase) private var scenePhase
     @AppStorage("filesDisplayStyle") private var displayStyleValue = CasaFileDisplayStyle.list.rawValue
+    @StateObject private var thumbnailStore = CasaFileThumbnailStore()
     @State private var files: [CasaFile] = []
     @State private var errorMessage: String?
     @State private var isLoading = false
@@ -35,6 +39,10 @@ struct FilesView: View {
     @State private var showExporter = false
 
     var body: some View {
+        dialogsContent
+    }
+
+    private var baseContent: some View {
         Group {
             if files.isEmpty, isLoading {
                 ProgressView("Loading files…")
@@ -61,7 +69,7 @@ struct FilesView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             locationBar
         }
-        .refreshable { await loadFiles() }
+        .refreshable { await loadFiles(clearThumbnails: true) }
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 if let parentPath {
@@ -108,6 +116,10 @@ struct FilesView: View {
                 }
             }
         }
+    }
+
+    private var lifecycleContent: some View {
+        baseContent
         .navigationDestination(item: $navigationTarget) { location in
             FilesView(client: client, path: location.path)
         }
@@ -124,7 +136,29 @@ struct FilesView: View {
             previewTask?.cancel()
             previewTask = nil
             removePreparedPreview()
+            thumbnailStore.removeAll()
         }
+        .onChange(of: displayStyleValue) { _, value in
+            if value != CasaFileDisplayStyle.grid.rawValue {
+                thumbnailStore.removeAll()
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active {
+                thumbnailStore.removeAll()
+            }
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: UIApplication.didReceiveMemoryWarningNotification
+            )
+        ) { _ in
+            thumbnailStore.removeAll()
+        }
+    }
+
+    private var presentationContent: some View {
+        lifecycleContent
         .fileImporter(
             isPresented: $showImporter,
             allowedContentTypes: [.data],
@@ -172,6 +206,10 @@ struct FilesView: View {
                 }
             }
         }
+    }
+
+    private var dialogsContent: some View {
+        presentationContent
         .alert("Go to server path", isPresented: $showLocationPrompt) {
             TextField("/absolute/path", text: $locationInput)
                 .textInputAutocapitalization(.never)
@@ -262,7 +300,12 @@ struct FilesView: View {
             ) {
                 ForEach(files) { file in
                     fileItem(file) {
-                        FileGridTile(file: file)
+                        FileGridTile(
+                            file: file,
+                            client: client,
+                            thumbnailStore: thumbnailStore,
+                            loadsThumbnail: scenePhase == .active
+                        )
                     }
                 }
             }
@@ -469,8 +512,11 @@ struct FilesView: View {
         navigate(to: path)
     }
 
-    private func loadFiles() async {
+    private func loadFiles(clearThumbnails: Bool = false) async {
         guard !isLoading else { return }
+        if clearThumbnails {
+            thumbnailStore.removeAll()
+        }
         isLoading = true
         defer { isLoading = false }
         do {
@@ -490,7 +536,7 @@ struct FilesView: View {
         let separator = path.isEmpty || path.hasSuffix("/") ? "" : "/"
         do {
             try await client.createFolder(at: path + separator + cleanName)
-            await loadFiles()
+            await loadFiles(clearThumbnails: true)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -518,7 +564,7 @@ struct FilesView: View {
                     }
                 )
                 try Task.checkCancellation()
-                await loadFiles()
+                await loadFiles(clearThumbnails: true)
                 try Task.checkCancellation()
                 uploadSummary = summary
             } catch is CancellationError {
@@ -616,7 +662,7 @@ struct FilesView: View {
                 to: destination,
                 isDirectory: file.isDirectory
             )
-            await loadFiles()
+            await loadFiles(clearThumbnails: true)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -645,6 +691,7 @@ struct FilesView: View {
                 operation: operation,
                 collisionPolicy: .skip
             )
+            thumbnailStore.removeAll()
             queuedOperationMessage = "CasaOS accepted the \(operation.displayName.lowercased()) request. Pull to refresh to see when it finishes. Existing same-name items are skipped."
         } catch {
             errorMessage = error.localizedDescription
@@ -654,7 +701,7 @@ struct FilesView: View {
     private func delete(_ file: CasaFile) async {
         do {
             try await client.deleteFiles(at: [file.path])
-            await loadFiles()
+            await loadFiles(clearThumbnails: true)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -998,6 +1045,15 @@ enum CasaFileDisplayStyle: String, CaseIterable, Sendable {
 }
 
 enum CasaFilePresentation {
+    static let maximumAutomaticThumbnailBytes: Int64 = 16 * 1_024 * 1_024
+
+    private static let thumbnailExtensions: Set<String> = [
+        "bmp", "csv", "doc", "docx", "gif", "heic", "heif", "jpeg", "jpg",
+        "json", "key", "m4v", "md", "mov", "mp4", "numbers", "pages", "pdf",
+        "png", "ppt", "pptx", "rtf", "tif", "tiff", "txt", "webp", "xls",
+        "xlsx", "xml", "yaml", "yml",
+    ]
+
     static func iconName(for filename: String) -> String {
         let ext = (filename as NSString).pathExtension.lowercased()
         if ["jpg", "jpeg", "png", "gif", "heic"].contains(ext) { return "photo" }
@@ -1005,6 +1061,17 @@ enum CasaFilePresentation {
         if ["mp3", "m4a", "flac"].contains(ext) { return "music.note" }
         if ext == "pdf" { return "doc.richtext" }
         return "doc"
+    }
+
+    static func isThumbnailEligible(_ file: CasaFile) -> Bool {
+        guard !file.isDirectory,
+              file.size > 0,
+              file.size <= maximumAutomaticThumbnailBytes else {
+            return false
+        }
+        return thumbnailExtensions.contains(
+            (file.name as NSString).pathExtension.lowercased()
+        )
     }
 }
 
@@ -1039,19 +1106,189 @@ private struct FileRow: View {
     }
 }
 
+private actor CasaFileThumbnailGate {
+    private var availablePermits = 2
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func acquire() async {
+        if availablePermits > 0 {
+            availablePermits -= 1
+            return
+        }
+        await withCheckedContinuation { continuation in
+            waiters.append(continuation)
+        }
+    }
+
+    func release() {
+        if waiters.isEmpty {
+            availablePermits += 1
+        } else {
+            waiters.removeFirst().resume()
+        }
+    }
+}
+
+private final class CasaFileThumbnailRequestBox: @unchecked Sendable {
+    let request: QLThumbnailGenerator.Request
+
+    init(request: QLThumbnailGenerator.Request) {
+        self.request = request
+    }
+
+    func cancel() {
+        QLThumbnailGenerator.shared.cancel(request)
+    }
+}
+
+@MainActor
+private final class CasaFileThumbnailStore: ObservableObject {
+    private let cache = NSCache<NSString, UIImage>()
+    private let gate = CasaFileThumbnailGate()
+
+    init() {
+        cache.countLimit = 64
+        cache.totalCostLimit = 32 * 1_024 * 1_024
+    }
+
+    func removeAll() {
+        cache.removeAllObjects()
+    }
+
+    func thumbnail(
+        for file: CasaFile,
+        client: any CasaOSClient,
+        size: CGSize,
+        scale: CGFloat
+    ) async -> UIImage? {
+        guard CasaFilePresentation.isThumbnailEligible(file) else { return nil }
+        let key = cacheKey(for: file, client: client, scale: scale)
+        if let image = cache.object(forKey: key) {
+            return image
+        }
+
+        await gate.acquire()
+        guard !Task.isCancelled else {
+            await gate.release()
+            return nil
+        }
+
+        var preparedURL: URL?
+        do {
+            let url = try await client.prepareFileForThumbnail(
+                at: file.path,
+                named: file.name
+            )
+            preparedURL = url
+            try Task.checkCancellation()
+            let image = try await generateThumbnail(from: url, size: size, scale: scale)
+            try Task.checkCancellation()
+            removePreparedThumbnail(at: url)
+            preparedURL = nil
+            await gate.release()
+            cache.setObject(image, forKey: key, cost: memoryCost(of: image))
+            return image
+        } catch {
+            if let preparedURL {
+                removePreparedThumbnail(at: preparedURL)
+            }
+            await gate.release()
+            return nil
+        }
+    }
+
+    private func generateThumbnail(
+        from url: URL,
+        size: CGSize,
+        scale: CGFloat
+    ) async throws -> UIImage {
+        let request = QLThumbnailGenerator.Request(
+            fileAt: url,
+            size: size,
+            scale: scale,
+            representationTypes: [.lowQualityThumbnail, .thumbnail]
+        )
+        let requestBox = CasaFileThumbnailRequestBox(request: request)
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                QLThumbnailGenerator.shared.generateBestRepresentation(for: request) {
+                    representation,
+                    error in
+                    if let representation {
+                        continuation.resume(returning: representation.uiImage)
+                    } else if let error {
+                        continuation.resume(throwing: error)
+                    } else {
+                        continuation.resume(throwing: CancellationError())
+                    }
+                }
+            }
+        } onCancel: {
+            requestBox.cancel()
+        }
+    }
+
+    private func cacheKey(
+        for file: CasaFile,
+        client: any CasaOSClient,
+        scale: CGFloat
+    ) -> NSString {
+        let clientID = ObjectIdentifier(client as AnyObject).hashValue
+        let modified = file.modified?.timeIntervalSinceReferenceDate ?? -1
+        return "\(clientID)|\(file.path)|\(file.size)|\(modified)|\(scale)" as NSString
+    }
+
+    private func memoryCost(of image: UIImage) -> Int {
+        guard let cgImage = image.cgImage else { return 0 }
+        return cgImage.width * cgImage.height * 4
+    }
+
+    private func removePreparedThumbnail(at url: URL) {
+        let temporaryRoot = FileManager.default.temporaryDirectory.standardizedFileURL
+        let parent = url.deletingLastPathComponent().standardizedFileURL
+        guard parent.deletingLastPathComponent() == temporaryRoot,
+              parent.lastPathComponent.hasPrefix("CasaNativeThumbnail-") else {
+            return
+        }
+        try? FileManager.default.removeItem(at: parent)
+    }
+}
+
 private struct FileGridTile: View {
     let file: CasaFile
+    let client: any CasaOSClient
+    @ObservedObject var thumbnailStore: CasaFileThumbnailStore
+    let loadsThumbnail: Bool
+
+    @Environment(\.displayScale) private var displayScale
+    @State private var thumbnail: UIImage?
+    @State private var isLoadingThumbnail = false
 
     var body: some View {
         VStack(spacing: 8) {
             ZStack {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(Color.secondary.opacity(0.09))
-                Image(systemName: file.isDirectory ? "folder.fill" : iconName)
-                    .font(.system(size: 42, weight: .medium))
-                    .foregroundStyle(file.isDirectory ? .blue : .secondary)
+                if let thumbnail {
+                    Image(uiImage: thumbnail)
+                        .resizable()
+                        .scaledToFill()
+                        .accessibilityHidden(true)
+                } else {
+                    Image(systemName: file.isDirectory ? "folder.fill" : iconName)
+                        .font(.system(size: 42, weight: .medium))
+                        .foregroundStyle(file.isDirectory ? .blue : .secondary)
+                }
+                if isLoadingThumbnail {
+                    ProgressView()
+                        .controlSize(.small)
+                        .padding(7)
+                        .background(.ultraThinMaterial, in: Circle())
+                        .accessibilityHidden(true)
+                }
             }
             .frame(height: 88)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
             Text(file.name)
                 .font(.subheadline.weight(.medium))
@@ -1068,6 +1305,24 @@ private struct FileGridTile: View {
         .frame(maxWidth: .infinity, minHeight: 148, alignment: .top)
         .contentShape(.rect)
         .accessibilityElement(children: .combine)
+        .task(id: thumbnailTaskID) {
+            thumbnail = nil
+            isLoadingThumbnail = false
+            guard loadsThumbnail,
+                  CasaFilePresentation.isThumbnailEligible(file) else {
+                return
+            }
+            isLoadingThumbnail = true
+            let image = await thumbnailStore.thumbnail(
+                for: file,
+                client: client,
+                size: CGSize(width: 190, height: 88),
+                scale: displayScale
+            )
+            guard !Task.isCancelled else { return }
+            thumbnail = image
+            isLoadingThumbnail = false
+        }
     }
 
     private var iconName: String {
@@ -1080,6 +1335,11 @@ private struct FileGridTile: View {
             parts.append(modified.formatted(date: .abbreviated, time: .omitted))
         }
         return parts.joined(separator: " · ")
+    }
+
+    private var thumbnailTaskID: String {
+        let modified = file.modified?.timeIntervalSinceReferenceDate ?? -1
+        return "\(file.path)|\(file.size)|\(modified)|\(displayScale)|\(loadsThumbnail)"
     }
 }
 

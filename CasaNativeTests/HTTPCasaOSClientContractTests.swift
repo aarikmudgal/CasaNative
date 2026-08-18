@@ -1079,6 +1079,38 @@ final class HTTPCasaOSClientContractTests: XCTestCase {
         XCTAssertEqual(CasaFilePresentation.iconName(for: "archive.tar"), "doc")
     }
 
+    func testGridThumbnailEligibilityIsTypeAndSizeBounded() {
+        let supportedFiles = [
+            CasaFile(name: "photo.HEIC", path: "/DATA/photo.HEIC", isDirectory: false, size: 2_000_000, modified: nil),
+            CasaFile(name: "guide.pdf", path: "/DATA/guide.pdf", isDirectory: false, size: 3_000_000, modified: nil),
+            CasaFile(name: "notes.txt", path: "/DATA/notes.txt", isDirectory: false, size: 200, modified: nil),
+            CasaFile(name: "clip.mov", path: "/DATA/clip.mov", isDirectory: false, size: 8_000_000, modified: nil),
+        ]
+
+        XCTAssertTrue(supportedFiles.allSatisfy(CasaFilePresentation.isThumbnailEligible))
+        XCTAssertFalse(CasaFilePresentation.isThumbnailEligible(
+            CasaFile(name: "Folder", path: "/DATA/Folder", isDirectory: true, size: 1, modified: nil)
+        ))
+        XCTAssertFalse(CasaFilePresentation.isThumbnailEligible(
+            CasaFile(name: "empty.jpg", path: "/DATA/empty.jpg", isDirectory: false, size: 0, modified: nil)
+        ))
+        XCTAssertFalse(CasaFilePresentation.isThumbnailEligible(
+            CasaFile(
+                name: "large.jpg",
+                path: "/DATA/large.jpg",
+                isDirectory: false,
+                size: CasaFilePresentation.maximumAutomaticThumbnailBytes + 1,
+                modified: nil
+            )
+        ))
+        XCTAssertFalse(CasaFilePresentation.isThumbnailEligible(
+            CasaFile(name: "archive.zip", path: "/DATA/archive.zip", isDirectory: false, size: 1_000, modified: nil)
+        ))
+        XCTAssertFalse(CasaFilePresentation.isThumbnailEligible(
+            CasaFile(name: "song.mp3", path: "/DATA/song.mp3", isDirectory: false, size: 1_000, modified: nil)
+        ))
+    }
+
     func testUploadEscapesQuoteAndBackslashInMultipartFilenameHeader() async throws {
         let recorder = RequestRecorder()
         CasaOSURLProtocol.install { request in
@@ -1430,6 +1462,230 @@ final class HTTPCasaOSClientContractTests: XCTestCase {
         XCTAssertTrue(recorder.requests.isEmpty)
     }
 
+    func testThumbnailUsesAuthenticatedFileEndpointAndReturnsExactNamedPayload() async throws {
+        let recorder = RequestRecorder()
+        let payload = Data([0x89, 0x50, 0x4E, 0x47])
+        CasaOSURLProtocol.install { request in
+            recorder.record(request)
+            return Self.response(for: request, body: payload)
+        }
+        let client = try makeAuthenticatedClient()
+
+        let url = try await client.prepareFileForThumbnail(
+            at: "/DATA/Photos/My Image.png",
+            named: "My Image.png"
+        )
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        XCTAssertEqual(url.lastPathComponent, "My Image.png")
+        XCTAssertTrue(url.deletingLastPathComponent().lastPathComponent.hasPrefix(
+            "CasaNativeThumbnail-"
+        ))
+        XCTAssertEqual(try Data(contentsOf: url), payload)
+        let request = try XCTUnwrap(recorder.requests.first)
+        XCTAssertEqual(recorder.requests.count, 1)
+        XCTAssertEqual(request.httpMethod, "GET")
+        XCTAssertEqual(request.url?.path, "/v1/file")
+        XCTAssertEqual(
+            request.value(forHTTPHeaderField: "Authorization"),
+            "raw.access.token"
+        )
+        XCTAssertEqual(
+            URLComponents(url: try XCTUnwrap(request.url), resolvingAgainstBaseURL: false)?
+                .queryItems?.first { $0.name == "path" }?.value,
+            "/DATA/Photos/My Image.png"
+        )
+    }
+
+    func testThumbnailLimitDefaultsToIndependent16MiBForLegacyInitializer() {
+        let limits = CasaFileTransferLimits(
+            inMemoryBytes: 1,
+            previewBytes: 2,
+            uploadBytes: 3
+        )
+
+        XCTAssertEqual(limits.thumbnailBytes, 16 * 1_024 * 1_024)
+    }
+
+    func testThumbnailRejectsActualBytesBeyondIndependentLimitAndCleansTemporaryItems() async throws {
+        let prefixes = ["CasaNativeTransport-", "CasaNativeThumbnail-"]
+        let before = try temporaryItemNames(withPrefixes: prefixes)
+        CasaOSURLProtocol.install { request in
+            Self.response(
+                for: request,
+                body: Data(repeating: 0x54, count: 11),
+                headerFields: ["Content-Length": "4"]
+            )
+        }
+        let client = try makeAuthenticatedClient(fileTransferLimits: .testLimits)
+
+        do {
+            _ = try await client.prepareFileForThumbnail(
+                at: "/DATA/Photos/lying.png",
+                named: "lying.png"
+            )
+            XCTFail("Expected actual thumbnail bytes to exceed the transport limit")
+        } catch {
+            XCTAssertEqual(
+                (error as? CasaOSError)?.errorDescription,
+                "This file exceeds Casa Native's 10 bytes thumbnail limit."
+            )
+        }
+
+        XCTAssertEqual(try temporaryItemNames(withPrefixes: prefixes), before)
+    }
+
+    func testThumbnailRejectsDeclaredBytesBeyondIndependentLimitAndCleansTemporaryItems() async throws {
+        let prefixes = ["CasaNativeTransport-", "CasaNativeThumbnail-"]
+        let before = try temporaryItemNames(withPrefixes: prefixes)
+        CasaOSURLProtocol.install { request in
+            Self.response(
+                for: request,
+                body: Data([0x54]),
+                headerFields: ["Content-Length": "11"]
+            )
+        }
+        let client = try makeAuthenticatedClient(fileTransferLimits: .testLimits)
+
+        do {
+            _ = try await client.prepareFileForThumbnail(
+                at: "/DATA/Photos/declared.png",
+                named: "declared.png"
+            )
+            XCTFail("Expected declared thumbnail bytes to exceed the transport limit")
+        } catch {
+            XCTAssertEqual(
+                (error as? CasaOSError)?.errorDescription,
+                "This file exceeds Casa Native's 10 bytes thumbnail limit."
+            )
+        }
+
+        XCTAssertEqual(try temporaryItemNames(withPrefixes: prefixes), before)
+    }
+
+    func testThumbnailRefreshesUnauthorizedSessionOnceAndCleansFirstTransport() async throws {
+        let prefixes = ["CasaNativeTransport-", "CasaNativeThumbnail-"]
+        let before = try temporaryItemNames(withPrefixes: prefixes)
+        let recorder = RequestRecorder()
+        let payload = Data("thumbnail".utf8)
+        CasaOSURLProtocol.install { request in
+            recorder.record(request)
+            if request.url?.path == "/v1/users/refresh" {
+                return Self.response(for: request, body: CasaOSContractFixtures.refresh)
+            }
+            if request.value(forHTTPHeaderField: "Authorization") == "expired.access" {
+                return Self.response(
+                    for: request,
+                    statusCode: 401,
+                    body: Data(#"{"message":"expired"}"#.utf8)
+                )
+            }
+            return Self.response(for: request, body: payload)
+        }
+        let origin = try EndpointOrigin(endpoint: baseURL)
+        let store = InMemorySessionTokenStore(tokensByOrigin: [
+            origin: SessionTokens(accessToken: "expired.access", refreshToken: "old.refresh"),
+        ])
+        let client = try makeClient(tokenStore: store)
+
+        let url = try await client.prepareFileForThumbnail(
+            at: "/DATA/Photos/photo.jpg",
+            named: "photo.jpg"
+        )
+
+        XCTAssertEqual(try Data(contentsOf: url), payload)
+        XCTAssertEqual(
+            recorder.requests.map { $0.url?.path },
+            ["/v1/file", "/v1/users/refresh", "/v1/file"]
+        )
+        XCTAssertEqual(
+            recorder.requests.last?.value(forHTTPHeaderField: "Authorization"),
+            "refreshed.access"
+        )
+        try FileManager.default.removeItem(at: url.deletingLastPathComponent())
+        XCTAssertEqual(try temporaryItemNames(withPrefixes: prefixes), before)
+    }
+
+    func testThumbnailPlacementFailureRemovesTransportAndThumbnailTemporaryItems() async throws {
+        let prefixes = ["CasaNativeTransport-", "CasaNativeThumbnail-"]
+        let before = try temporaryItemNames(withPrefixes: prefixes)
+        CasaOSURLProtocol.install { request in
+            Self.response(for: request, body: Data("thumbnail".utf8))
+        }
+        let client = try makeAuthenticatedClient()
+        let overlongLegalFilename = String(repeating: "a", count: 300) + ".png"
+
+        do {
+            _ = try await client.prepareFileForThumbnail(
+                at: "/DATA/Photos/photo.png",
+                named: overlongLegalFilename
+            )
+            XCTFail("Expected final thumbnail placement to fail")
+        } catch {
+            XCTAssertFalse(error is CasaOSError)
+        }
+
+        XCTAssertEqual(try temporaryItemNames(withPrefixes: prefixes), before)
+    }
+
+    func testThumbnailRejectsUnsafePathOrFilenameWithoutNetworkRequest() async throws {
+        let recorder = RequestRecorder()
+        CasaOSURLProtocol.install { request in
+            recorder.record(request)
+            return Self.response(for: request, body: Data())
+        }
+        let client = try makeAuthenticatedClient()
+        let unsafeThumbnails = [
+            ("", "photo.png"),
+            ("/", "root.png"),
+            ("/DATA/../etc/hosts", "hosts.png"),
+            ("/DATA/a\u{0000}b", "a.png"),
+            ("/DATA/photo.png", "../photo.png"),
+            ("/DATA/photo.png", ""),
+        ]
+
+        for (path, filename) in unsafeThumbnails {
+            do {
+                _ = try await client.prepareFileForThumbnail(at: path, named: filename)
+                XCTFail("Expected thumbnail rejection for \(path), \(filename)")
+            } catch {
+                XCTAssertEqual(
+                    (error as? CasaOSError)?.errorDescription,
+                    "Casa Native only prepares thumbnails for safe absolute file paths."
+                )
+            }
+        }
+        XCTAssertTrue(recorder.requests.isEmpty)
+    }
+
+    func testThumbnailCancellationBeforeTransportLeavesNoTemporaryItems() async throws {
+        let prefixes = ["CasaNativeTransport-", "CasaNativeThumbnail-"]
+        let before = try temporaryItemNames(withPrefixes: prefixes)
+        let recorder = RequestRecorder()
+        CasaOSURLProtocol.install { request in
+            recorder.record(request)
+            return Self.response(for: request, body: Data("thumbnail".utf8))
+        }
+        let client = try makeAuthenticatedClient()
+
+        let task = Task {
+            try await client.prepareFileForThumbnail(
+                at: "/DATA/Photos/photo.png",
+                named: "photo.png"
+            )
+        }
+        task.cancel()
+        do {
+            _ = try await task.value
+            XCTFail("Expected thumbnail preparation cancellation")
+        } catch {
+            XCTAssertTrue(error is CancellationError)
+        }
+
+        XCTAssertTrue(recorder.requests.isEmpty)
+        XCTAssertEqual(try temporaryItemNames(withPrefixes: prefixes), before)
+    }
+
     func testPowerCommandsUseCasaOSStateEndpoints() async throws {
         let recorder = RequestRecorder()
         CasaOSURLProtocol.install { request in
@@ -1508,7 +1764,8 @@ private extension CasaFileTransferLimits {
     static let testLimits = CasaFileTransferLimits(
         inMemoryBytes: 8,
         previewBytes: 12,
-        uploadBytes: 8
+        uploadBytes: 8,
+        thumbnailBytes: 10
     )
 }
 
