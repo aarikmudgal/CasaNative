@@ -13,7 +13,10 @@ struct RootTabView: View {
 
             Tab("Apps", systemImage: "square.grid.2x2") {
                 NavigationStack {
-                    AppsView(client: model.client, serverURL: model.serverURL)
+                    AppsView(client: model.client, serverURL: model.serverURL,
+                             profileStore: model.containerBrowserProfiles,
+                             credentialStore: model.containerCredentialStore,
+                             isDemo: model.mockMode)
                 }
             }
 
@@ -29,5 +32,6 @@ struct RootTabView: View {
                 }
             }
         }
+        .disabled(model.isForgettingServer)
     }
 }

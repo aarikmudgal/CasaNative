@@ -6,7 +6,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-No unreleased changes yet.
+### Added
+
+- Persistent in-app container browsers with separate WebKit profiles for each server, container, and launch origin, including distinct ports. Profiles preserve cookies and website storage across reopening and app relaunches; services can still expire or revoke the sign-in.
+- A native container **Sign In** sheet with iOS Password AutoFill selection when enabled, optional app-private device-only Keychain storage, user-directed website form filling without automatic submission, and explicit HTTP Basic/Digest sign-in prompts. MFA, passkeys, and unsupported forms remain interactive.
+- Separate **Forget Saved Login** and **Clear Browser Session** actions, plus removal of a server's container profiles and saved credentials through **Disconnect and Forget Server**, with reported cleanup errors available for retry.
+
+### Security
+
+- Container sign-in never silently reuses CasaOS credentials or creates an Apple Passwords entry. Saved form credentials are restricted to the original launch scheme, host, and port, with unsafe actions, framed forms, registration/password-change forms, ambiguous fields, and conflicting existing values rejected.
+- Browser-session clearing keeps saved credentials separate and does not promise server-side session revocation or complete HTTP Basic/Digest logout. Plain HTTP sign-in retains an explicit unencrypted-traffic warning.
 
 ## [0.2.1] - 2026-08-30
 

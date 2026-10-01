@@ -1,5 +1,4 @@
 import Foundation
-import SafariServices
 import SwiftUI
 
 enum AppsLoadErrorPolicy {
@@ -19,6 +18,9 @@ enum AppsLoadErrorPolicy {
 struct AppsView: View {
     let client: any CasaOSClient
     let serverURL: URL
+    let profileStore: ContainerBrowserProfileStore
+    let credentialStore: any ContainerCredentialStoring
+    var isDemo = false
 
     @State private var apps: [CasaApp] = []
     @State private var errorMessage: String?
@@ -49,7 +51,7 @@ struct AppsView: View {
                         app: app,
                         serverURL: serverURL,
                         isChanging: changingAppID == app.id,
-                        open: { url in browserDestination = BrowserDestination(url: url) },
+                        open: { url in open(app, at: url) },
                         action: { action in Task { await apply(action, to: app) } }
                     )
                 }
@@ -79,9 +81,20 @@ struct AppsView: View {
             Text(errorMessage ?? "Unknown error")
         }
         .fullScreenCover(item: $browserDestination) { destination in
-            InAppBrowser(url: destination.url)
-                .ignoresSafeArea()
+            ContainerBrowserView(model: destination.model)
         }
+    }
+
+    private func open(_ app: CasaApp, at url: URL) {
+        do {
+            let browserURL = isDemo ? URL(string: "https://demo.casanative.invalid:\(url.port ?? 443)/")! : url
+            let browserServer = isDemo ? URL(string: "https://demo.casanative.invalid")! : serverURL
+            let identity = try ContainerBrowserIdentity(serverURL: browserServer, appID: app.id, launchURL: browserURL)
+            browserDestination = BrowserDestination(model: try ContainerBrowserModel(
+                name: app.name, launchURL: browserURL, identity: identity,
+                profileStore: profileStore, credentialStore: credentialStore, isDemo: isDemo
+            ))
+        } catch { errorMessage = error.localizedDescription }
     }
 
     private func loadApps() async {
@@ -193,39 +206,6 @@ private struct AppRow: View {
 }
 
 private struct BrowserDestination: Identifiable {
-    let url: URL
-
-    var id: URL { url }
-}
-
-private struct InAppBrowser: UIViewControllerRepresentable {
-    let url: URL
-
-    @Environment(\.dismiss) private var dismiss
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(dismiss: dismiss)
-    }
-
-    func makeUIViewController(context: Context) -> SFSafariViewController {
-        let controller = SFSafariViewController(url: url)
-        controller.dismissButtonStyle = .done
-        controller.delegate = context.coordinator
-        return controller
-    }
-
-    func updateUIViewController(_ controller: SFSafariViewController, context: Context) {}
-
-    final class Coordinator: NSObject, @MainActor SFSafariViewControllerDelegate {
-        private let dismiss: DismissAction
-
-        init(dismiss: DismissAction) {
-            self.dismiss = dismiss
-        }
-
-        @MainActor
-        func safariViewControllerDidFinish(_ controller: SFSafariViewController) {
-            dismiss()
-        }
-    }
+    let id = UUID()
+    let model: ContainerBrowserModel
 }

@@ -57,9 +57,12 @@ xcodebuild \
   -resultBundlePath .testbuild/CasaNative.xcresult \
   -onlyUsePackageVersionsFromResolvedFile \
   -parallel-testing-enabled NO \
-  CODE_SIGNING_ALLOWED=NO \
+  CODE_SIGNING_ALLOWED=YES \
+  CODE_SIGN_IDENTITY=- \
   test
 ```
+
+Simulator builds and tests use local ad-hoc signing so real Keychain operations can run. This does not require a distribution certificate, provisioning profile, Apple account, or CI signing secret. Unsigned simulator hosts cannot pass the credential-storage tests.
 
 For UI changes, install the newest build on that simulator and inspect both Light and Dark appearances at practical Dynamic Type sizes. Screenshots committed to documentation must use mock mode and must not expose a live hostname, username, token, IP address, drive serial number, file name, or app-specific private data.
 
