@@ -470,8 +470,8 @@ jobs:
             -onlyUsePackageVersionsFromResolvedFile \
             -disableAutomaticPackageResolution \
             -parallel-testing-enabled NO \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=YES \
+            CODE_SIGN_IDENTITY=- \
             test 2>&1 | tee "$RUNNER_TEMP/CasaNative-release-tests.log"
           if grep -E '(^|/)(CasaNative|CasaNativeTests)/.*:[0-9]+:[0-9]+: warning:' \
             "$RUNNER_TEMP/CasaNative-release-tests.log"; then
