@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+No unreleased changes yet.
+
+## [0.3.0] - 2026-10-01
+
 ### Added
 
 - Persistent in-app container browsers with separate WebKit profiles for each server, container, and launch origin, including distinct ports. Profiles preserve cookies and website storage across reopening and app relaunches; services can still expire or revoke the sign-in.
@@ -83,7 +87,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Tagged release IPAs are unsigned and must be re-signed before installation.
 - Detailed SMART requires saved SSH credentials, server-side smartmontools, suitable sudo permission, and working drive or USB-bridge SMART passthrough. Casa Native reports but does not guess a smartctl `-d` device type when a bridge requires one.
 
-[Unreleased]: https://github.com/aarikmudgal/CasaNative/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/aarikmudgal/CasaNative/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/aarikmudgal/CasaNative/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/aarikmudgal/CasaNative/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/aarikmudgal/CasaNative/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/aarikmudgal/CasaNative/releases/tag/v0.1.0
