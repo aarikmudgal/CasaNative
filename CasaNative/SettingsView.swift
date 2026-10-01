@@ -196,7 +196,7 @@ struct SettingsView: View {
         } message: {
             Text(model.mockMode
                  ? "You’ll return to server setup."
-                 : "This signs out and removes the saved server address from this iPhone.")
+                 : "This signs out and removes the saved server address, container browser sessions, and saved container logins from this iPhone.")
         }
         .confirmationDialog(
             powerDialogTitle,
@@ -226,6 +226,14 @@ struct SettingsView: View {
             Button("OK", role: .cancel) { powerError = nil }
         } message: {
             Text(powerError ?? "Unknown error")
+        }
+        .alert("Could Not Forget Server", isPresented: Binding(
+            get: { model.disconnectError != nil },
+            set: { if !$0 { model.disconnectError = nil } }
+        )) {
+            Button("OK", role: .cancel) { model.disconnectError = nil }
+        } message: {
+            Text(model.disconnectError ?? "Unknown error")
         }
     }
 

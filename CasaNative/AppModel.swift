@@ -57,6 +57,8 @@ final class AppModel: ObservableObject {
     @Published var username = ""
     @Published var loginError: String?
     @Published private(set) var sshCredentialError: String?
+    @Published var disconnectError: String?
+    @Published private(set) var isForgettingServer = false
     @Published var isWorking = false
     @Published var appearanceMode: AppearanceMode {
         didSet {
@@ -81,12 +83,18 @@ final class AppModel: ObservableObject {
     @Published private(set) var activeEndpoint: ServerEndpoint?
     @Published private(set) var client: any CasaOSClient
     let sshCredentialStore: any SSHCredentialStoring
+    let containerCredentialStore: any ContainerCredentialStoring
+    let containerBrowserProfiles: ContainerBrowserProfileStore
 
     init(
         sshCredentialStore: any SSHCredentialStoring = SSHCredentialStore(),
+        containerCredentialStore: any ContainerCredentialStoring = ContainerCredentialStore(),
+        containerBrowserProfiles: ContainerBrowserProfileStore? = nil,
         preferences: any AppPreferenceStoring = UserDefaults.standard
     ) {
         self.preferences = preferences
+        self.containerCredentialStore = containerCredentialStore
+        self.containerBrowserProfiles = containerBrowserProfiles ?? ContainerBrowserProfileStore(preferences: preferences)
         appearanceMode = AppearanceMode(
             rawValue: preferences.string(forKey: Self.appearanceKey) ?? ""
         ) ?? .system
@@ -186,9 +194,22 @@ final class AppModel: ObservableObject {
     }
 
     func disconnect() async {
-        let endpoint = activeEndpoint?.url
-        await client.logout()
+        guard !isForgettingServer else { return }
+        isForgettingServer = true
+        defer { isForgettingServer = false }
+        let endpoint = mockMode ? URL(string: "https://demo.casanative.invalid") : activeEndpoint?.url
+        disconnectError = nil
         if let endpoint {
+            do {
+                try await containerBrowserProfiles.removeAll(for: endpoint)
+                try await containerCredentialStore.deleteAll(for: endpoint)
+            } catch {
+                disconnectError = "Could not remove this server’s browser sessions and saved logins. Retry forgetting the server. \(error.localizedDescription)"
+                return
+            }
+        }
+        await client.logout()
+        if let endpoint, !mockMode {
             try? await sshCredentialStore.deleteAll(for: endpoint)
         }
         activeEndpoint = nil

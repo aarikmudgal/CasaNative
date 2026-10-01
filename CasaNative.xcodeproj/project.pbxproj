@@ -7,6 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B60000000000000000000001 /* ContainerBrowserStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = C60000000000000000000001 /* ContainerBrowserStorage.swift */; };
+		B60000000000000000000002 /* ContainerLoginForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = C60000000000000000000002 /* ContainerLoginForm.swift */; };
+		B60000000000000000000003 /* ContainerBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C60000000000000000000003 /* ContainerBrowserView.swift */; };
+		B60000000000000000000004 /* ContainerBrowserStorageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C60000000000000000000004 /* ContainerBrowserStorageTests.swift */; };
+		B60000000000000000000005 /* ContainerLoginFormTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C60000000000000000000005 /* ContainerLoginFormTests.swift */; };
+		B60000000000000000000006 /* ContainerBrowserModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C60000000000000000000006 /* ContainerBrowserModelTests.swift */; };
 		B00000000000000000000001 /* CasaNativeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000001 /* CasaNativeApp.swift */; };
 		B00000000000000000000002 /* CasaOSClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000002 /* CasaOSClient.swift */; };
 		B00000000000000000000003 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000003 /* RootTabView.swift */; };
@@ -56,6 +62,12 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		C60000000000000000000001 /* ContainerBrowserStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContainerBrowserStorage.swift; sourceTree = "<group>"; };
+		C60000000000000000000002 /* ContainerLoginForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContainerLoginForm.swift; sourceTree = "<group>"; };
+		C60000000000000000000003 /* ContainerBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContainerBrowserView.swift; sourceTree = "<group>"; };
+		C60000000000000000000004 /* ContainerBrowserStorageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContainerBrowserStorageTests.swift; sourceTree = "<group>"; };
+		C60000000000000000000005 /* ContainerLoginFormTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContainerLoginFormTests.swift; sourceTree = "<group>"; };
+		C60000000000000000000006 /* ContainerBrowserModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContainerBrowserModelTests.swift; sourceTree = "<group>"; };
 		C00000000000000000000001 /* CasaNativeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CasaNativeApp.swift; sourceTree = "<group>"; };
 		C00000000000000000000002 /* CasaOSClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CasaOSClient.swift; sourceTree = "<group>"; };
 		C00000000000000000000003 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
@@ -126,6 +138,9 @@
 		E00000000000000000000003 /* CasaNative */ = {
 			isa = PBXGroup;
 			children = (
+				C60000000000000000000001 /* ContainerBrowserStorage.swift */,
+				C60000000000000000000002 /* ContainerLoginForm.swift */,
+				C60000000000000000000003 /* ContainerBrowserView.swift */,
 				C00000000000000000000001 /* CasaNativeApp.swift */,
 				C00000000000000000000002 /* CasaOSClient.swift */,
 				C00000000000000000000003 /* RootTabView.swift */,
@@ -154,6 +169,9 @@
 		E00000000000000000000004 /* CasaNativeTests */ = {
 			isa = PBXGroup;
 			children = (
+				C60000000000000000000004 /* ContainerBrowserStorageTests.swift */,
+				C60000000000000000000005 /* ContainerLoginFormTests.swift */,
+				C60000000000000000000006 /* ContainerBrowserModelTests.swift */,
 				C00000000000000000000009 /* MockCasaOSClientTests.swift */,
 				C00000000000000000000018 /* HTTPCasaOSClientContractTests.swift */,
 				C00000000000000000000019 /* ServerEndpointTests.swift */,
@@ -289,6 +307,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B60000000000000000000001 /* ContainerBrowserStorage.swift in Sources */,
+				B60000000000000000000002 /* ContainerLoginForm.swift in Sources */,
+				B60000000000000000000003 /* ContainerBrowserView.swift in Sources */,
 				B00000000000000000000001 /* CasaNativeApp.swift in Sources */,
 				B00000000000000000000002 /* CasaOSClient.swift in Sources */,
 				B00000000000000000000003 /* RootTabView.swift in Sources */,
@@ -316,6 +337,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B60000000000000000000004 /* ContainerBrowserStorageTests.swift in Sources */,
+				B60000000000000000000005 /* ContainerLoginFormTests.swift in Sources */,
+				B60000000000000000000006 /* ContainerBrowserModelTests.swift in Sources */,
 				B00000000000000000000009 /* MockCasaOSClientTests.swift in Sources */,
 				B00000000000000000000016 /* HTTPCasaOSClientContractTests.swift in Sources */,
 				B00000000000000000000017 /* ServerEndpointTests.swift in Sources */,

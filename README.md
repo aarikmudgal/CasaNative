@@ -52,7 +52,7 @@ Stock CasaOS does not advertise `_casaos._tcp` through Bonjour. Exact automatic 
 ### Apps, files, and server controls
 
 - Lists installed Compose apps, shows status, and provides start, stop, and restart controls.
-- Opens a running app in an in-app browser using the active LAN or Tailscale host.
+- Opens a running app in a persistent in-app browser using the active LAN or Tailscale host, with a separate profile for each server, container, and launch origin.
 - Starts Files at `/DATA`, supports navigation across the server filesystem, and opens authenticated downloads in native Quick Look.
 - Allows folder creation, upload, rename, copy, move, and guarded deletion at any safe absolute server path permitted by the CasaOS service and host; explicit downloads do not modify the server.
 - Supports multi-file selection for uploads, shows per-file progress and a completion summary, and continues past individual file failures.
@@ -61,6 +61,20 @@ Stock CasaOS does not advertise `_casaos._tcp` through Bonjour. Exact automatic 
 - **Filesystem warning:** Casa Native is not a filesystem sandbox and adds no `/DATA` mutation boundary. Requests use the signed-in CasaOS session, but stock file handlers run with CasaOS daemon privileges rather than a documented per-account filesystem ACL. A privileged backend may alter or permanently delete operating-system and application files. Review every path and destructive confirmation carefully.
 - Confirms CasaOS restart and shutdown operations before sending them.
 - Supports System, Light, and Dark appearance modes.
+
+### Container app sign-in and browser sessions
+
+Each server/container/launch-origin combination has a separate persistent WebKit profile and saved sign-in. The origin includes the URL scheme, hostname, and port, so apps on different ports do not share a profile. Browser cookies and localStorage survive closing and reopening an app and relaunching Casa Native. The service can still expire or revoke a session and require another sign-in.
+
+To sign in, open the container app and tap the key-shaped **Sign In** button. Enter the app's credentials, or use the keyboard's **Passwords** button to select an existing login when iOS Password AutoFill is enabled. Tap **Fill Sign-in**, then submit the form on the app's page. Filling happens only after that action and never automatically submits a website form. Supported forms include username/email and password-only sign-ins; MFA, passkeys, registration, password changes, and unsupported or unsafe forms remain interactive and may require manual sign-in. HTTP Basic and Digest challenges use an explicit native **Sign In** prompt rather than silently supplying credentials.
+
+**Remember in Keychain** stores the chosen credentials in Casa Native's app-private, device-only Keychain. It does not create an Apple Passwords entry or sync the saved login to another device. Container sign-in never silently reuses the CasaOS password. Saved credentials can be filled only on the app's original launch origin; a different scheme, host, or port is not trusted for filling.
+
+The browser's menu separates credential removal from website storage:
+
+- **Forget Saved Login** removes the container's saved Keychain credentials but leaves its browser session intact.
+- **Clear Browser Session** removes that profile's cookies and website storage, then reloads the app's entry page. Saved credentials remain available. Clearing website data does not promise server-side session revocation or a complete HTTP Basic/Digest logout; use the service's own sign-out when available.
+- **Disconnect and Forget Server** in Settings removes that server's container browser profiles and saved container credentials along with its CasaOS connection details. If cleanup reports an error, retry; a failed cleanup is not reported as successful deletion.
 
 ### SSH terminal
 
@@ -105,7 +119,8 @@ SwiftUI views
     CasaOSClient protocol
       HTTPCasaOSClient actor (live CasaOS HTTP API)
       MockCasaOSClient actor (offline fixtures)
-    Keychain-backed token and SSH credential stores
+    Keychain-backed token, SSH, and container credential stores
+    Persistent WebKit profiles (server/container/launch-origin scope)
     BonjourDiscovery
     SwiftNIO SSH session and host-key store
     SMART drive controller (explicit standby-safe preflight and confirmed wake)
@@ -147,7 +162,7 @@ File upload and explicit Save/Download are capped at 128 MiB because those paths
 
 CasaOS commonly serves plain HTTP. On an untrusted network, HTTP exposes credentials and session traffic to interception just as the stock web UI does. Prefer HTTPS, a trusted LAN, or a private Tailscale path. Casa Native does not bypass TLS certificate validation.
 
-API tokens, CasaOS credentials optionally retained for SSH, separate SSH credentials, and pinned SSH host keys use Keychain items protected with `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`. They are unavailable while the device is locked and do not migrate to another device through backup. This protection does not make extraction impossible from a compromised, jailbroken, or already-unlocked iPhone. Keep the device passcode-protected and updated.
+API tokens, CasaOS credentials optionally retained for SSH, separate SSH credentials, saved container app credentials, and pinned SSH host keys use Keychain items protected with `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`. They are unavailable while the device is locked and do not migrate to another device through backup. This protection does not make extraction impossible from a compromised, jailbroken, or already-unlocked iPhone. Keep the device passcode-protected and updated.
 
 **CasaOS sign-in** is the fresh-install default. After a successful CasaOS login, the same username and password are stored in a device-only Keychain item so SSH can reuse them; the Linux SSH account must accept those credentials. **Separate sign-in** remains available for servers that use different CasaOS and Linux credentials. Existing installations continue to honor their saved credential-mode preference. Changing modes does not delete credentials already saved in either entry; disconnecting and forgetting a server removes its session tokens and both SSH credential entries.
 
@@ -185,7 +200,8 @@ xcodebuild \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max,OS=26.5' \
   -derivedDataPath .build \
   -onlyUsePackageVersionsFromResolvedFile \
-  CODE_SIGNING_ALLOWED=NO \
+  CODE_SIGNING_ALLOWED=YES \
+  CODE_SIGN_IDENTITY=- \
   build
 ```
 
@@ -210,13 +226,14 @@ xcodebuild \
   -resultBundlePath .testbuild/CasaNative.xcresult \
   -onlyUsePackageVersionsFromResolvedFile \
   -parallel-testing-enabled NO \
-  CODE_SIGNING_ALLOWED=NO \
+  CODE_SIGNING_ALLOWED=YES \
+  CODE_SIGN_IDENTITY=- \
   test
 ```
 
-Tests cover endpoint normalization, server probing, login and token refresh, authorization, dashboard polling and metadata caching, storage filtering and grouping, CasaOS drive-health summaries, fixture-backed direct-SMART command and JSON parsing, apps and actions, file preview and mutation contracts, file-path guards, recursive mock operations, Keychain abstractions, SSH credentials, identity and session behavior, and fixture-backed fan detection, validation, transitions, rollback, uninstall, recovery, and screen-model behavior.
+Tests cover endpoint normalization, server probing, login and token refresh, authorization, dashboard polling and metadata caching, storage filtering and grouping, CasaOS drive-health summaries, fixture-backed direct-SMART command and JSON parsing, apps and actions, container browser profile isolation and safe form filling, file preview and mutation contracts, file-path guards, recursive mock operations, Keychain abstractions, SSH credentials, identity and session behavior, and fixture-backed fan detection, validation, transitions, rollback, uninstall, recovery, and screen-model behavior.
 
-Automated tests use fixtures and mock clients. They must not call a live server's `/v1/disks`, run live SSH or smartctl, wake a drive, change apps or files, or send power commands.
+Automated tests use fixtures, mock clients, and locally loaded browser pages. They must not call a live server's `/v1/disks`, run live SSH or smartctl, wake a drive, change apps or files, or send power commands.
 
 ## Install on a physical iPhone
 
@@ -252,7 +269,7 @@ Free Apple development profiles normally expire after seven days, so the app mus
 Every pull request and each non-release push to `main` runs three independent CI gates:
 
 - Repository and release-metadata validation, including the release tool's unit tests.
-- Unsigned tests on GitHub's `macos-26` runner with Xcode 26.6 and an iPhone 17 Pro Max simulator running iOS 26.5.
+- Ad-hoc-signed tests on GitHub's `macos-26` runner with Xcode 26.6 and an iPhone 17 Pro Max simulator running iOS 26.5. This enables real simulator Keychain validation without a signing certificate or provisioning profile.
 - Xcode static analysis against that same locked project and simulator configuration.
 
 The Xcode jobs resolve only versions in the committed `Package.resolved`. A warning emitted from Casa Native or Casa Native test source is treated as a failure; warnings internal to a locked third-party package remain that package's responsibility. Failed Xcode jobs retain their `.xcresult` bundle for seven days. GitHub CodeQL remains a separate required release check.
